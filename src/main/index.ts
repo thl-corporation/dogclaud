@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, Notification } from 'electron';
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell, Notification, session, net } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import Store from 'electron-store';
 import chokidar from 'chokidar';
 import { getClaudeLogPaths, parseTokenEvents, getClaudeUserInfo } from '../core/parser/jsonlParser';
@@ -12,6 +13,81 @@ let tray: Tray | null = null;
 let settingsStore: Store<Record<string, unknown>>;
 let fileWatcher: chokidar.FSWatcher | null = null;
 let isQuitting = false;
+let loginWindow: BrowserWindow | null = null;
+
+const WEB_PARTITION = 'persist:claude-web';
+
+function getWebSession() {
+  return session.fromPartition(WEB_PARTITION);
+}
+
+async function isWebSessionValid(): Promise<boolean> {
+  try {
+    const result = await fetchWebUsageRaw();
+    return result.status === 200;
+  } catch {
+    return false;
+  }
+}
+
+function fetchWebUsageRaw(): Promise<{ status: number; data: unknown }> {
+  return new Promise((resolve) => {
+    const webSess = getWebSession();
+    const req = net.request({
+      method: 'GET',
+      url: 'https://claude.ai/api/oauth/usage',
+      session: webSess,
+    });
+
+    req.setHeader('Accept', 'application/json');
+    req.setHeader('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+    let body = '';
+    req.on('response', (res) => {
+      res.on('data', (chunk) => { body += chunk.toString(); });
+      res.on('end', () => {
+        try {
+          resolve({ status: res.statusCode || 0, data: JSON.parse(body) });
+        } catch {
+          resolve({ status: res.statusCode || 0, data: null });
+        }
+      });
+    });
+    req.on('error', () => resolve({ status: 0, data: null }));
+    req.end();
+  });
+}
+
+async function fetchAllWebUsage(): Promise<{ connected: boolean; usage: unknown; limits: unknown }> {
+  const webSess = getWebSession();
+
+  const makeReq = (url: string): Promise<{ status: number; data: unknown }> => new Promise((resolve) => {
+    const req = net.request({ method: 'GET', url, session: webSess });
+    req.setHeader('Accept', 'application/json');
+    req.setHeader('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    let body = '';
+    req.on('response', (res) => {
+      res.on('data', (c) => { body += c.toString(); });
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode || 0, data: JSON.parse(body) }); }
+        catch { resolve({ status: res.statusCode || 0, data: null }); }
+      });
+    });
+    req.on('error', () => resolve({ status: 0, data: null }));
+    req.end();
+  });
+
+  const [usageRes, limitsRes] = await Promise.all([
+    makeReq('https://claude.ai/api/oauth/usage'),
+    makeReq('https://claude.ai/api/claude_code/policy_limits'),
+  ]);
+
+  return {
+    connected: usageRes.status === 200,
+    usage: usageRes.data,
+    limits: limitsRes.data,
+  };
+}
 
 const DEFAULT_SETTINGS: AppSettings = {
   plan: 'pro',
@@ -252,7 +328,133 @@ function checkAlerts(percentage: number, alertsEnabled: boolean): void {
   }
 }
 
+function checkClaudeSetup(): { installed: boolean; loggedIn: boolean; claudeDir: string } {
+  const homeDir = os.homedir();
+  const claudeDir = path.join(homeDir, '.claude');
+  const credentialsPath = path.join(claudeDir, '.credentials.json');
+  const projectsDir = path.join(claudeDir, 'projects');
+
+  const loggedIn = fs.existsSync(credentialsPath) && fs.existsSync(projectsDir);
+
+  // Check if claude CLI is installed: look in PATH and common locations
+  const candidates = [
+    'claude',
+    path.join(homeDir, '.local', 'bin', 'claude'),
+    path.join(homeDir, '.local', 'share', 'claude', 'current'),
+    '/usr/local/bin/claude',
+    '/usr/bin/claude',
+    // Windows
+    path.join(homeDir, 'AppData', 'Local', 'Programs', 'claude', 'claude.exe'),
+    // macOS
+    '/opt/homebrew/bin/claude',
+  ];
+
+  let installed = false;
+  for (const candidate of candidates) {
+    try {
+      if (candidate === 'claude') {
+        // Check PATH
+        const result = require('child_process').spawnSync('which', ['claude'], { encoding: 'utf8' });
+        const resultWhere = require('child_process').spawnSync('where', ['claude'], { encoding: 'utf8' });
+        if ((result.status === 0 && result.stdout.trim()) || (resultWhere.status === 0)) {
+          installed = true;
+          break;
+        }
+      } else if (fs.existsSync(candidate)) {
+        installed = true;
+        break;
+      }
+    } catch {
+      // continue
+    }
+  }
+
+  // If credentials exist, CLI was definitely installed at some point
+  if (loggedIn) installed = true;
+
+  return { installed, loggedIn, claudeDir };
+}
+
 function setupIPC(): void {
+  ipcMain.handle('check-setup', () => {
+    return checkClaudeSetup();
+  });
+
+  ipcMain.handle('open-install-url', () => {
+    shell.openExternal('https://claude.ai/download');
+  });
+
+  // ── Web session IPC ──────────────────────────────────────────────────────
+
+  ipcMain.handle('check-web-session', async () => {
+    const webSess = getWebSession();
+    const cookies = await webSess.cookies.get({ domain: 'claude.ai' });
+    if (cookies.length === 0) return { connected: false };
+    const valid = await isWebSessionValid();
+    return { connected: valid };
+  });
+
+  ipcMain.handle('open-web-login', () => {
+    return new Promise<{ success: boolean }>((resolve) => {
+      if (loginWindow && !loginWindow.isDestroyed()) {
+        loginWindow.focus();
+        resolve({ success: false });
+        return;
+      }
+
+      loginWindow = new BrowserWindow({
+        width: 960,
+        height: 720,
+        title: 'Iniciar sesión en Claude',
+        webPreferences: {
+          partition: WEB_PARTITION,       // persistent, survives restarts
+          nodeIntegration: false,
+          contextIsolation: true,
+        },
+      });
+
+      loginWindow.loadURL('https://claude.ai/login');
+
+      // Detect successful login by watching URL changes
+      const onNavigate = async (_e: Electron.Event, url: string) => {
+        const isHome = /^https:\/\/claude\.ai\/(new|chats?|$)/.test(url) || url === 'https://claude.ai/';
+        if (isHome) {
+          // Give the page a moment to set all cookies
+          await new Promise(r => setTimeout(r, 1500));
+          if (loginWindow && !loginWindow.isDestroyed()) loginWindow.close();
+          resolve({ success: true });
+          // Notify renderer
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('web-session-changed', { connected: true });
+          }
+        }
+      };
+
+      loginWindow.webContents.on('did-navigate', onNavigate);
+      loginWindow.webContents.on('did-navigate-in-page', onNavigate);
+
+      loginWindow.on('closed', () => {
+        loginWindow = null;
+        resolve({ success: false });
+      });
+    });
+  });
+
+  ipcMain.handle('get-web-usage', async () => {
+    return fetchAllWebUsage();
+  });
+
+  ipcMain.handle('disconnect-web', async () => {
+    const webSess = getWebSession();
+    await webSess.clearStorageData({ storages: ['cookies', 'localstorage', 'cachestorage'] });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('web-session-changed', { connected: false });
+    }
+    return { success: true };
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+
   ipcMain.handle('get-settings', () => {
     return settingsStore.store as unknown as AppSettings;
   });
@@ -337,9 +539,20 @@ app.whenReady().then(() => {
   
   // Initial update
   setTimeout(updateUsage, 2000);
-  
-  // Periodic update every 5 seconds
+
+  // Periodic update every 5 seconds (CLI local data)
   setInterval(updateUsage, 5000);
+
+  // Periodic web usage update every 30 seconds
+  const pushWebUsage = async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    const result = await fetchAllWebUsage();
+    if (result.connected) {
+      mainWindow.webContents.send('web-usage-update', result);
+    }
+  };
+  setTimeout(pushWebUsage, 3000);
+  setInterval(pushWebUsage, 30000);
 });
 
 app.on('window-all-closed', () => {

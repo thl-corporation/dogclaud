@@ -4,6 +4,8 @@ import { WeeklyGauge } from './components/gauges/WeeklyGauge';
 import { AlertManager } from './components/alerts/AlertManager';
 import { WeeklyPlan } from './components/scheduler/WeeklyPlan';
 import { SettingsPanel } from './components/settings/SettingsPanel';
+import { SetupScreen } from './components/SetupScreen';
+import { WebUsagePanel } from './components/WebUsagePanel';
 import { useUsageStore } from './stores/usageStore';
 import { useSettingsStore } from './stores/settingsStore';
 import { useAlertStore } from './stores/alertStore';
@@ -11,6 +13,7 @@ import { formatCountdown, formatCountdownWeekly, getPercentageColor } from '../c
 import { PlanType, ScheduleInterval } from '../shared/types';
 
 type TabType = 'usage' | 'schedule' | 'settings';
+type SetupStatus = 'checking' | 'incomplete' | 'ready';
 
 const TRAFFIC_COLORS = [
   { min: 0,   max: 25,  color: '#22c55e', label: '0–24%',   name: 'Normal' },
@@ -24,6 +27,22 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabType>('usage');
   const [userInfo, setUserInfo] = useState<{ email?: string; plan?: string }>({});
   const [isConnected, setIsConnected] = useState(false);
+  const [setupStatus, setSetupStatus] = useState<SetupStatus>('checking');
+  const [setupInfo, setSetupInfo] = useState<{ installed: boolean; loggedIn: boolean }>({ installed: false, loggedIn: false });
+  const [webConnected, setWebConnected] = useState(false);
+  const [webUsage, setWebUsage] = useState<unknown>(null);
+  const [webLimits, setWebLimits] = useState<unknown>(null);
+  const [webConnecting, setWebConnecting] = useState(false);
+
+  const checkSetup = async () => {
+    if (!window.electronAPI?.checkSetup) {
+      setSetupStatus('ready');
+      return;
+    }
+    const result = await window.electronAPI.checkSetup();
+    setSetupInfo(result);
+    setSetupStatus(result.loggedIn ? 'ready' : 'incomplete');
+  };
 
   const {
     sessionTokens,
@@ -51,20 +70,67 @@ function App() {
   const { silenceAlert } = useAlertStore();
 
   useEffect(() => {
-    if (window.electronAPI) {
-      window.electronAPI.getSettings().then(loadSettings);
-      window.electronAPI.getUserInfo().then(setUserInfo);
+    checkSetup();
+  }, []);
 
-      window.electronAPI.onUsageUpdate((usage) => {
-        setUsage(usage);
-        setIsConnected(true);
-      });
+  useEffect(() => {
+    if (setupStatus !== 'ready') return;
+    if (!window.electronAPI) return;
 
-      window.electronAPI.onShowAlert((data) => {
-        console.log('Alert received:', data);
-      });
+    window.electronAPI.getSettings().then(loadSettings);
+    window.electronAPI.getUserInfo().then(setUserInfo);
+
+    window.electronAPI.onUsageUpdate((usage) => {
+      setUsage(usage);
+      setIsConnected(true);
+    });
+
+    window.electronAPI.onShowAlert((data) => {
+      console.log('Alert received:', data);
+    });
+
+    // Web session
+    window.electronAPI.checkWebSession().then(({ connected }) => {
+      setWebConnected(connected);
+      if (connected) {
+        window.electronAPI!.getWebUsage().then((r) => {
+          setWebUsage(r.usage);
+          setWebLimits(r.limits);
+        });
+      }
+    });
+
+    window.electronAPI.onWebSessionChanged(({ connected }) => {
+      setWebConnected(connected);
+      if (!connected) { setWebUsage(null); setWebLimits(null); }
+    });
+
+    window.electronAPI.onWebUsageUpdate((r) => {
+      setWebConnected(r.connected);
+      if (r.connected) {
+        setWebUsage(r.usage);
+        setWebLimits(r.limits);
+      }
+    });
+  }, [setupStatus, loadSettings, setUsage]);
+
+  const handleWebConnect = async () => {
+    setWebConnecting(true);
+    const result = await window.electronAPI?.openWebLogin();
+    setWebConnecting(false);
+    if (result?.success) {
+      setWebConnected(true);
+      const r = await window.electronAPI?.getWebUsage();
+      if (r) { setWebUsage(r.usage); setWebLimits(r.limits); }
     }
-  }, [loadSettings, setUsage]);
+  };
+
+  const handleWebDisconnect = async () => {
+    await window.electronAPI?.disconnectWeb();
+    setWebConnected(false);
+    setWebUsage(null);
+    setWebLimits(null);
+  };
 
   const handleSilenceAlert = (threshold: number) => {
     silenceAlert(threshold);
@@ -139,6 +205,31 @@ function App() {
     { id: 'schedule' as TabType, label: 'Plan', icon: '⊞' },
     { id: 'settings' as TabType, label: 'Config', icon: '⚙' },
   ];
+
+  // Show loading while checking
+  if (setupStatus === 'checking') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(160deg, #0a0b0f 0%, #111827 60%, #0a0b0f 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'rgba(255,255,255,0.4)', fontFamily: 'sans-serif', fontSize: '14px',
+      }}>
+        Verificando configuración...
+      </div>
+    );
+  }
+
+  // Show setup screen if not ready
+  if (setupStatus === 'incomplete') {
+    return (
+      <SetupScreen
+        installed={setupInfo.installed}
+        loggedIn={setupInfo.loggedIn}
+        onRetry={checkSetup}
+      />
+    );
+  }
 
   return (
     <div style={{
@@ -338,6 +429,16 @@ function App() {
                 })}
               </div>
             </div>
+
+            {/* Web usage panel */}
+            <WebUsagePanel
+              connected={webConnected}
+              usage={webUsage}
+              limits={webLimits}
+              onConnect={handleWebConnect}
+              onDisconnect={handleWebDisconnect}
+              connecting={webConnecting}
+            />
 
             {/* Alerts */}
             <div style={{

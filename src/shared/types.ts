@@ -74,6 +74,8 @@ export interface ParsedFile {
 export type UsageUpdateCallback = (usage: UsageData) => void;
 
 export interface IElectronAPI {
+  checkSetup: () => Promise<{ installed: boolean; loggedIn: boolean; claudeDir: string }>;
+  openInstallUrl: () => Promise<void>;
   getUsageData: () => Promise<UsageData & { sessionResetTime: Date; weeklyResetTime: Date }>;
   onUsageUpdate: (callback: (usage: UsageData & { sessionResetTime: Date; weeklyResetTime: Date }) => void) => void;
   getSettings: () => Promise<AppSettings>;
@@ -86,6 +88,12 @@ export interface IElectronAPI {
   updateTrayTooltip: (sessionPct: number, weeklyPct: number) => void;
   silenceAlert: (threshold: number) => void;
   onShowAlert: (callback: (data: { threshold: number; message: string }) => void) => void;
+  checkWebSession: () => Promise<{ connected: boolean }>;
+  openWebLogin: () => Promise<{ success: boolean }>;
+  getWebUsage: () => Promise<{ connected: boolean; usage: unknown; limits: unknown }>;
+  disconnectWeb: () => Promise<{ success: boolean }>;
+  onWebSessionChanged: (callback: (data: { connected: boolean }) => void) => void;
+  onWebUsageUpdate: (callback: (data: { connected: boolean; usage: unknown; limits: unknown }) => void) => void;
 }
 
 declare global {

@@ -7,6 +7,14 @@ interface UserInfo {
 }
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  checkSetup: (): Promise<{ installed: boolean; loggedIn: boolean; claudeDir: string }> => {
+    return ipcRenderer.invoke('check-setup');
+  },
+
+  openInstallUrl: (): Promise<void> => {
+    return ipcRenderer.invoke('open-install-url');
+  },
+
   getSettings: (): Promise<AppSettings> => {
     return ipcRenderer.invoke('get-settings');
   },
@@ -53,5 +61,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   onShowAlert: (callback: (data: { threshold: number; message: string }) => void): void => {
     ipcRenderer.on('show-alert', (_event, data) => callback(data));
-  }
+  },
+
+  checkWebSession: (): Promise<{ connected: boolean }> => {
+    return ipcRenderer.invoke('check-web-session');
+  },
+
+  openWebLogin: (): Promise<{ success: boolean }> => {
+    return ipcRenderer.invoke('open-web-login');
+  },
+
+  getWebUsage: (): Promise<{ connected: boolean; usage: unknown; limits: unknown }> => {
+    return ipcRenderer.invoke('get-web-usage');
+  },
+
+  disconnectWeb: (): Promise<{ success: boolean }> => {
+    return ipcRenderer.invoke('disconnect-web');
+  },
+
+  onWebSessionChanged: (callback: (data: { connected: boolean }) => void): void => {
+    ipcRenderer.on('web-session-changed', (_event, data) => callback(data));
+  },
+
+  onWebUsageUpdate: (callback: (data: { connected: boolean; usage: unknown; limits: unknown }) => void): void => {
+    ipcRenderer.on('web-usage-update', (_event, data) => callback(data));
+  },
 });
