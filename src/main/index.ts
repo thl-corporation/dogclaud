@@ -5,8 +5,9 @@ import * as os from 'os';
 import Store from 'electron-store';
 import chokidar from 'chokidar';
 import { getClaudeLogPaths, parseTokenEvents, getClaudeUserInfo } from '../core/parser/jsonlParser';
-import { calculateUsage, calculateResetTimes } from '../core/calculator/usageCalculator';
-import { AppSettings } from '../shared/types';
+import { calculateUsage, calculateResetTimes, formatCountdown } from '../core/calculator/usageCalculator';
+import { PLAN_LIMITS } from '../core/constants';
+import { AppSettings, PlanType } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -14,78 +15,297 @@ let settingsStore: Store<Record<string, unknown>>;
 let fileWatcher: chokidar.FSWatcher | null = null;
 let isQuitting = false;
 let loginWindow: BrowserWindow | null = null;
+let cachedOrgId: string | null = null;
+let cookieStore: Store<Record<string, unknown>> | null = null;
+let isWebConnected = false;
 
 const WEB_PARTITION = 'persist:claude-web';
+
+interface SavedCookie {
+  url: string;
+  name: string;
+  value: string;
+  domain?: string;
+  path?: string;
+  secure?: boolean;
+  httpOnly?: boolean;
+  sameSite?: string;
+  expirationDate?: number;
+}
 
 function getWebSession() {
   return session.fromPartition(WEB_PARTITION);
 }
 
+/** Save all claude.ai cookies to electron-store for reliable persistence */
+async function saveCookiesToStore(): Promise<void> {
+  if (!cookieStore) return;
+  const webSess = getWebSession();
+  const allCookies = await webSess.cookies.get({ url: 'https://claude.ai' });
+
+  const toSave: SavedCookie[] = allCookies.map(c => ({
+    url: `https://${(c.domain || 'claude.ai').replace(/^\./, '')}${c.path || '/'}`,
+    name: c.name,
+    value: c.value,
+    domain: c.domain,
+    path: c.path,
+    secure: c.secure,
+    httpOnly: c.httpOnly,
+    sameSite: c.sameSite,
+    expirationDate: c.expirationDate || (Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60),
+  }));
+
+  cookieStore.set('claudeCookies', toSave);
+  console.log(`[Cookies] Saved ${toSave.length} cookies to store`);
+}
+
+/** Restore cookies from electron-store into the web session */
+async function restoreCookiesFromStore(): Promise<void> {
+  if (!cookieStore) return;
+  const webSess = getWebSession();
+  const saved = cookieStore.get('claudeCookies') as SavedCookie[] | undefined;
+  if (!saved || !Array.isArray(saved) || saved.length === 0) {
+    console.log('[Cookies] No saved cookies to restore');
+    return;
+  }
+
+  let restored = 0;
+  for (const cookie of saved) {
+    try {
+      await webSess.cookies.set({
+        url: cookie.url,
+        name: cookie.name,
+        value: cookie.value,
+        domain: cookie.domain,
+        path: cookie.path,
+        secure: cookie.secure,
+        httpOnly: cookie.httpOnly,
+        sameSite: cookie.sameSite as 'unspecified' | 'no_restriction' | 'lax' | 'strict' | undefined,
+        expirationDate: cookie.expirationDate,
+      });
+      restored++;
+    } catch (err) {
+      console.error(`[Cookies] Failed to restore cookie ${cookie.name}:`, err);
+    }
+  }
+  console.log(`[Cookies] Restored ${restored}/${saved.length} cookies from store`);
+}
+
+/** Clear saved cookies from store */
+function clearCookieStore(): void {
+  if (cookieStore) {
+    cookieStore.delete('claudeCookies');
+    console.log('[Cookies] Cleared saved cookies from store');
+  }
+}
+
+async function makeWebRequest(url: string): Promise<{ status: number; data: unknown; raw: string }> {
+  const webSess = getWebSession();
+
+  // Manually build Cookie header — net.request sometimes doesn't attach partition cookies
+  const cookies = await webSess.cookies.get({ url: 'https://claude.ai' });
+  const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+  return new Promise((resolve) => {
+    const req = net.request({ method: 'GET', url, session: webSess });
+    req.setHeader('Accept', 'application/json');
+    req.setHeader('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
+    req.setHeader('anthropic-client-sha', 'unknown');
+    req.setHeader('anthropic-client-platform', 'web');
+    if (cookieHeader) {
+      req.setHeader('Cookie', cookieHeader);
+    }
+
+    let body = '';
+    req.on('response', (res) => {
+      res.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+      res.on('end', () => {
+        try {
+          resolve({ status: res.statusCode || 0, data: JSON.parse(body), raw: body });
+        } catch {
+          resolve({ status: res.statusCode || 0, data: null, raw: body });
+        }
+      });
+    });
+    req.on('error', (err) => {
+      console.error('[WebReq] Error fetching', url, err);
+      resolve({ status: 0, data: null, raw: '' });
+    });
+    req.end();
+  });
+}
+
+interface OrgInfo {
+  uuid: string;
+  name: string;
+  billingType: string;
+  capabilities: string[];
+  rateLimitTier: string;
+}
+
+let cachedBootstrap: Record<string, unknown> | null = null;
+let allOrgs: OrgInfo[] = [];
+
+async function getBootstrapData(): Promise<Record<string, unknown> | null> {
+  if (cachedBootstrap) return cachedBootstrap;
+
+  const bootstrap = await makeWebRequest('https://claude.ai/api/bootstrap');
+  console.log('[WebAPI] Bootstrap status:', bootstrap.status);
+
+  if (bootstrap.status !== 200 || !bootstrap.data) return null;
+
+  cachedBootstrap = bootstrap.data as Record<string, unknown>;
+  return cachedBootstrap;
+}
+
+async function getOrgId(): Promise<string | null> {
+  if (cachedOrgId) return cachedOrgId;
+
+  const data = await getBootstrapData();
+  if (!data) return null;
+
+  // Extract ALL organizations from memberships
+  allOrgs = [];
+  if (data.account && typeof data.account === 'object') {
+    const account = data.account as Record<string, unknown>;
+
+    if (account.memberships && Array.isArray(account.memberships)) {
+      for (const membership of account.memberships) {
+        const m = membership as Record<string, unknown>;
+        if (m.organization && typeof m.organization === 'object') {
+          const org = m.organization as Record<string, unknown>;
+          if (org.uuid) {
+            allOrgs.push({
+              uuid: org.uuid as string,
+              name: (org.name as string) || 'Unknown',
+              billingType: (org.billing_type as string) || '',
+              capabilities: (org.capabilities as string[]) || [],
+              rateLimitTier: (org.rate_limit_tier as string) || '',
+            });
+          }
+        }
+      }
+    }
+  }
+
+  console.log('[WebAPI] Found', allOrgs.length, 'organizations:', allOrgs.map(o => `${o.name} (${o.billingType}, ${o.uuid})`));
+
+  // Also check lastActiveOrg cookie
+  const webSess = getWebSession();
+  const cookies = await webSess.cookies.get({ url: 'https://claude.ai', name: 'lastActiveOrg' });
+  const lastActiveOrg = cookies.length > 0 ? cookies[0].value : null;
+  console.log('[WebAPI] lastActiveOrg cookie:', lastActiveOrg);
+
+  // Priority: use lastActiveOrg if it's in our list
+  if (lastActiveOrg) {
+    const found = allOrgs.find(o => o.uuid === lastActiveOrg);
+    if (found) {
+      cachedOrgId = found.uuid;
+      console.log('[WebAPI] Using lastActiveOrg:', cachedOrgId, `(${found.name}, ${found.billingType})`);
+      return cachedOrgId;
+    }
+    // Even if not in our membership list, try it — it might be a personal org
+    cachedOrgId = lastActiveOrg;
+    console.log('[WebAPI] Using lastActiveOrg (not in memberships):', cachedOrgId);
+    return cachedOrgId;
+  }
+
+  // Fallback: prefer non-API org (claude.ai subscription org)
+  const nonApiOrg = allOrgs.find(o => !o.capabilities.includes('api') || o.billingType !== 'prepaid');
+  if (nonApiOrg) {
+    cachedOrgId = nonApiOrg.uuid;
+    console.log('[WebAPI] Using non-API org:', cachedOrgId, `(${nonApiOrg.name})`);
+    return cachedOrgId;
+  }
+
+  // Last resort: first org
+  if (allOrgs.length > 0) {
+    cachedOrgId = allOrgs[0].uuid;
+    console.log('[WebAPI] Using first org:', cachedOrgId);
+    return cachedOrgId;
+  }
+
+  console.log('[WebAPI] No org found');
+  return null;
+}
+
 async function isWebSessionValid(): Promise<boolean> {
   try {
-    const result = await fetchWebUsageRaw();
-    return result.status === 200;
+    // Bootstrap always returns 200, but account is null if not authenticated
+    const result = await makeWebRequest('https://claude.ai/api/bootstrap');
+    if (result.status !== 200 || !result.data) return false;
+    const data = result.data as Record<string, unknown>;
+    // If account is not null, the session is valid
+    return data.account !== null && data.account !== undefined;
   } catch {
     return false;
   }
 }
 
-function fetchWebUsageRaw(): Promise<{ status: number; data: unknown }> {
-  return new Promise((resolve) => {
-    const webSess = getWebSession();
-    const req = net.request({
-      method: 'GET',
-      url: 'https://claude.ai/api/oauth/usage',
-      session: webSess,
-    });
-
-    req.setHeader('Accept', 'application/json');
-    req.setHeader('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-
-    let body = '';
-    req.on('response', (res) => {
-      res.on('data', (chunk) => { body += chunk.toString(); });
-      res.on('end', () => {
-        try {
-          resolve({ status: res.statusCode || 0, data: JSON.parse(body) });
-        } catch {
-          resolve({ status: res.statusCode || 0, data: null });
-        }
-      });
-    });
-    req.on('error', () => resolve({ status: 0, data: null }));
-    req.end();
-  });
-}
-
 async function fetchAllWebUsage(): Promise<{ connected: boolean; usage: unknown; limits: unknown }> {
-  const webSess = getWebSession();
+  // Step 1: Get bootstrap + org ID
+  const data = await getBootstrapData();
+  if (!data || !data.account) {
+    console.log('[WebAPI] No account data — session invalid');
+    cachedBootstrap = null; // Force refresh next time
+    return { connected: false, usage: null, limits: null };
+  }
 
-  const makeReq = (url: string): Promise<{ status: number; data: unknown }> => new Promise((resolve) => {
-    const req = net.request({ method: 'GET', url, session: webSess });
-    req.setHeader('Accept', 'application/json');
-    req.setHeader('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    let body = '';
-    req.on('response', (res) => {
-      res.on('data', (c) => { body += c.toString(); });
-      res.on('end', () => {
-        try { resolve({ status: res.statusCode || 0, data: JSON.parse(body) }); }
-        catch { resolve({ status: res.statusCode || 0, data: null }); }
-      });
-    });
-    req.on('error', () => resolve({ status: 0, data: null }));
-    req.end();
+  const orgId = await getOrgId();
+  if (!orgId) {
+    return { connected: false, usage: null, limits: null };
+  }
+
+  // Step 2: Fetch actual usage data from working endpoints
+  const endpoints = [
+    { key: 'usage', url: `https://claude.ai/api/organizations/${orgId}/usage` },
+    { key: 'rate_limits', url: `https://claude.ai/api/organizations/${orgId}/rate_limits` },
+    { key: 'chat_conversations', url: `https://claude.ai/api/organizations/${orgId}/chat_conversations?limit=5` },
+  ];
+
+  const results: Record<string, unknown> = {};
+
+  const fetches = endpoints.map(async (ep) => {
+    const res = await makeWebRequest(ep.url);
+    if (res.status === 200 && res.data) {
+      results[ep.key] = res.data;
+    }
   });
+  await Promise.all(fetches);
 
-  const [usageRes, limitsRes] = await Promise.all([
-    makeReq('https://claude.ai/api/oauth/usage'),
-    makeReq('https://claude.ai/api/claude_code/policy_limits'),
-  ]);
+  // Step 3: Extract account info from bootstrap
+  const account = data.account as Record<string, unknown>;
+  const accountInfo: Record<string, unknown> = {
+    email: account.email_address,
+    name: account.full_name,
+    display_name: account.display_name,
+  };
+
+  // Extract org info (current org)
+  const currentOrg = allOrgs.find(o => o.uuid === orgId);
+  if (currentOrg) {
+    accountInfo.organization = currentOrg.name;
+    accountInfo.billing_type = currentOrg.billingType;
+    accountInfo.rate_limit_tier = currentOrg.rateLimitTier;
+    accountInfo.capabilities = currentOrg.capabilities;
+  }
+
+  // All orgs for context
+  if (allOrgs.length > 1) {
+    accountInfo.all_organizations = allOrgs.map(o => ({
+      name: o.name,
+      uuid: o.uuid,
+      billing_type: o.billingType,
+      rate_limit_tier: o.rateLimitTier,
+    }));
+  }
+
+  results['account_info'] = accountInfo;
 
   return {
-    connected: usageRes.status === 200,
-    usage: usageRes.data,
-    limits: limitsRes.data,
+    connected: true,
+    usage: results,
+    limits: { orgId, orgName: currentOrg?.name || 'Unknown' },
   };
 }
 
@@ -104,6 +324,9 @@ function initStore(): void {
   settingsStore = new Store<Record<string, unknown>>({
     name: 'claude-usage-tracker-settings',
     defaults: DEFAULT_SETTINGS as unknown as Record<string, unknown>
+  });
+  cookieStore = new Store<Record<string, unknown>>({
+    name: 'claude-web-cookies',
   });
 }
 
@@ -138,29 +361,37 @@ function createWindow(): void {
   });
 }
 
-function createTrayIcon(percentage: number, color: string): Electron.NativeImage {
-  const size = 64;
-  const pct = Math.round(percentage);
-  const fontSize = pct >= 100 ? 16 : pct >= 10 ? 19 : 22;
-  const yOffset = size / 2 + fontSize / 2 - 2;
-
-  const svg = `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 3}" fill="${color}" stroke="rgba(255,255,255,0.95)" stroke-width="4"/>
-    <text x="${size/2}" y="${yOffset}" font-size="${fontSize}" fill="white" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold">${pct}%</text>
-  </svg>`;
-
-  const buffer = Buffer.from(svg);
-  return nativeImage.createFromBuffer(buffer);
+function createTrayIcon(_percentage: number, color: string): Electron.NativeImage {
+  const colorMap: Record<string, string> = {
+    '#22C55E': 'dog-emoji-green.png',
+    '#3B82F6': 'dog-emoji-blue.png',
+    '#EAB308': 'dog-emoji-yellow.png',
+    '#F97316': 'dog-emoji-orange.png',
+    '#EF4444': 'dog-emoji-red.png',
+    '#DC2626': 'dog-emoji-red.png',
+    '#B91C1C': 'dog-emoji-red.png',
+    '#FBBF24': 'dog-emoji-yellow.png',
+  };
+  
+  const colorKey = (color || '#22C55E').toUpperCase();
+  const iconFile = colorMap[colorKey] || 'dog-emoji-green.png';
+  const iconPath = path.join(__dirname, '../../assets', iconFile);
+  
+  if (fs.existsSync(iconPath)) {
+    return nativeImage.createFromPath(iconPath);
+  }
+  
+  const fallback = nativeImage.createEmpty();
+  return fallback;
 }
 
 function createTray(): void {
-  const iconPath = path.join(__dirname, '../../assets/icon.png');
+  const dogIconPath = path.join(__dirname, '../../assets/dog-emoji-green.png');
   let icon: Electron.NativeImage;
   
-  if (fs.existsSync(iconPath)) {
-    icon = nativeImage.createFromPath(iconPath);
+  if (fs.existsSync(dogIconPath)) {
+    icon = nativeImage.createFromPath(dogIconPath);
   } else {
-    // Create default icon
     icon = createTrayIcon(0, '#22C55E');
   }
   
@@ -256,12 +487,15 @@ async function updateUsage(): Promise<void> {
     const sessionPct = usage.sessionLimit > 0 ? (usage.sessionTokens / usage.sessionLimit) * 100 : 0;
     const weeklyPct = usage.weeklyLimit > 0 ? (usage.weeklyTokens / usage.weeklyLimit) * 100 : 0;
     
-    // Update tray icon
-    if (tray) {
+    // Update tray icon ONLY if not connected to web API (web data takes precedence)
+    if (tray && !isWebConnected) {
       const color = getColorForPercentage(sessionPct);
       const icon = createTrayIcon(sessionPct, color);
       tray.setImage(icon);
-      tray.setToolTip(`Claude Usage: ${Math.round(sessionPct)}%`);
+      const resetTimeStr = resetTimes.sessionResetTime 
+        ? formatCountdown(new Date(resetTimes.sessionResetTime))
+        : '--:--';
+      tray.setToolTip(`Claude Usage Tracker\nSesión: ${Math.round(sessionPct)}% | Reset: ${resetTimeStr}`);
     }
     
     updateTrayMenu(sessionPct, weeklyPct);
@@ -285,11 +519,11 @@ async function updateUsage(): Promise<void> {
 
 function getColorForPercentage(percentage: number): string {
   if (percentage >= 100) return '#EF4444';
-  if (percentage >= 95) return '#DC2626';
-  if (percentage >= 90) return '#F97316';
-  if (percentage >= 75) return '#FBBF24';
-  if (percentage >= 50) return '#22C55E';
-  if (percentage >= 25) return '#3B82F6';
+  if (percentage >= 95)  return '#DC2626';
+  if (percentage >= 90)  return '#F97316';
+  if (percentage >= 75)  return '#EAB308';
+  if (percentage >= 50)  return '#EAB308';
+  if (percentage >= 25)  return '#3B82F6';
   return '#22C55E';
 }
 
@@ -304,7 +538,7 @@ function checkAlerts(percentage: number, alertsEnabled: boolean): void {
     if (percentage >= threshold && !alertedThresholds.has(threshold)) {
       alertedThresholds.add(threshold);
       
-      // Show notification
+      // Show notification with colored icon
       const messages: Record<number, string> = {
         25: 'Uso al 25% - Comenzando',
         50: 'Uso al 50% - Mitad de camino',
@@ -314,10 +548,26 @@ function checkAlerts(percentage: number, alertsEnabled: boolean): void {
         100: '¡LÍMITE ALCANZADO!'
       };
       
+      const colorMap: Record<string, string> = {
+        '#22C55E': 'dog-emoji-green.png',
+        '#3B82F6': 'dog-emoji-blue.png',
+        '#EAB308': 'dog-emoji-yellow.png',
+        '#F97316': 'dog-emoji-orange.png',
+        '#EF4444': 'dog-emoji-red.png',
+        '#DC2626': 'dog-emoji-red.png',
+        '#B91C1C': 'dog-emoji-red.png',
+        '#FBBF24': 'dog-emoji-yellow.png',
+      };
+      const alertColor = getColorForPercentage(threshold);
+      const iconFile = colorMap[alertColor] || 'dog-emoji-green.png';
+      const iconPath = path.join(__dirname, '../../assets', iconFile);
+      const iconData = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : undefined;
+      
       new Notification({
-        title: 'Claude Usage Tracker',
+        title: '🐕 Claude Usage Tracker',
         body: messages[threshold],
-        urgency: threshold >= 95 ? 'critical' : 'normal'
+        urgency: threshold >= 95 ? 'critical' : 'normal',
+        icon: iconData
       }).show();
       
       // Send to renderer
@@ -388,7 +638,7 @@ function setupIPC(): void {
 
   ipcMain.handle('check-web-session', async () => {
     const webSess = getWebSession();
-    const cookies = await webSess.cookies.get({ domain: 'claude.ai' });
+    const cookies = await webSess.cookies.get({ url: 'https://claude.ai' });
     if (cookies.length === 0) return { connected: false };
     const valid = await isWebSessionValid();
     return { connected: valid };
@@ -420,7 +670,13 @@ function setupIPC(): void {
         const isHome = /^https:\/\/claude\.ai\/(new|chats?|$)/.test(url) || url === 'https://claude.ai/';
         if (isHome) {
           // Give the page a moment to set all cookies
-          await new Promise(r => setTimeout(r, 1500));
+          await new Promise(r => setTimeout(r, 2000));
+
+          // Save cookies to electron-store for reliable persistence across restarts
+          await saveCookiesToStore();
+
+          cachedOrgId = null; // Force re-fetch of org ID
+
           if (loginWindow && !loginWindow.isDestroyed()) loginWindow.close();
           resolve({ success: true });
           // Notify renderer
@@ -447,6 +703,10 @@ function setupIPC(): void {
   ipcMain.handle('disconnect-web', async () => {
     const webSess = getWebSession();
     await webSess.clearStorageData({ storages: ['cookies', 'localstorage', 'cachestorage'] });
+    cachedOrgId = null;
+    cachedBootstrap = null;
+    allOrgs = [];
+    clearCookieStore();
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('web-session-changed', { connected: false });
     }
@@ -498,11 +758,12 @@ function setupIPC(): void {
     alertedThresholds.delete(threshold);
   });
   
-  ipcMain.on('update-tray-icon', (_event, percentage: number, color: string) => {
+  ipcMain.on('update-tray-icon', (_event, percentage: number, color: string, resetTime?: string) => {
     if (tray) {
       const icon = createTrayIcon(percentage, color);
       tray.setImage(icon);
-      tray.setToolTip(`Claude Usage Tracker - Sesión: ${Math.round(percentage)}%`);
+      const timeStr = resetTime || '--:--';
+      tray.setToolTip(`Claude Usage Tracker\nSesión: ${Math.round(percentage)}% | Reset: ${timeStr}`);
     }
   });
   
@@ -529,14 +790,18 @@ function setupAutoStart(): void {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   initStore();
+
+  // Restore web session cookies BEFORE anything else
+  await restoreCookiesFromStore();
+
   createWindow();
   createTray();
   setupIPC();
   setupAutoStart();
   setupFileWatcher();
-  
+
   // Initial update
   setTimeout(updateUsage, 2000);
 
@@ -546,9 +811,45 @@ app.whenReady().then(() => {
   // Periodic web usage update every 30 seconds
   const pushWebUsage = async () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
+
     const result = await fetchAllWebUsage();
+    isWebConnected = result.connected;
+    
     if (result.connected) {
       mainWindow.webContents.send('web-usage-update', result);
+      // Re-save cookies periodically to keep them fresh
+      await saveCookiesToStore();
+
+      // Update tray icon from web API data if available
+      const usageData = result.usage as Record<string, unknown> | null;
+      if (usageData) {
+        const fiveHour = usageData.usage as Record<string, unknown> | undefined;
+        if (fiveHour) {
+          const fh = fiveHour.five_hour as { utilization?: number; resets_at?: string } | undefined;
+          if (fh && typeof fh.utilization === 'number') {
+            const settings = settingsStore.store as unknown as AppSettings;
+            const plan = (settings.plan || 'pro') as PlanType;
+            const limit = PLAN_LIMITS[plan].sessionTokens;
+            const pct = fh.utilization > 100 
+              ? (fh.utilization / limit) * 100 
+              : fh.utilization;
+            const color = getColorForPercentage(pct);
+            const icon = createTrayIcon(pct, color);
+            if (tray) {
+              tray.setImage(icon);
+              const resetTime = fh.resets_at 
+                ? formatCountdown(new Date(fh.resets_at)) 
+                : '--:--';
+              tray.setToolTip(`Claude Usage Tracker\nSesión: ${Math.round(pct)}% | Reset: ${resetTime}`);
+            }
+            const sd = fiveHour.seven_day as { utilization?: number } | undefined;
+            const weeklyPct = sd?.utilization && sd.utilization > 100
+              ? (sd.utilization / PLAN_LIMITS[plan].weeklyTokens) * 100
+              : (sd?.utilization ?? 0);
+            updateTrayMenu(pct, weeklyPct);
+          }
+        }
+      }
     }
   };
   setTimeout(pushWebUsage, 3000);
@@ -567,9 +868,11 @@ app.on('activate', () => {
   }
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
   isQuitting = true;
   if (fileWatcher) {
     fileWatcher.close();
   }
+  // Save cookies one last time before quitting
+  await saveCookiesToStore();
 });

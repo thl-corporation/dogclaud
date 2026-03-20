@@ -6,6 +6,7 @@ interface SessionGaugeProps {
   limit: number;
   countdown: string;
   color: string;
+  showTokens?: boolean;
 }
 
 export const SessionGauge: React.FC<SessionGaugeProps> = ({
@@ -13,7 +14,8 @@ export const SessionGauge: React.FC<SessionGaugeProps> = ({
   tokens,
   limit,
   countdown,
-  color
+  color,
+  showTokens = true,
 }) => {
   const size = 220;
   const strokeWidth = 14;
@@ -127,14 +129,22 @@ export const SessionGauge: React.FC<SessionGaugeProps> = ({
       </div>
 
       <div style={{ marginTop: '20px', textAlign: 'center' }}>
-        <p style={{ fontSize: '15px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace', margin: 0 }}>
-          {tokens.toLocaleString()}
-          <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 6px' }}>/</span>
-          {limit.toLocaleString()}
-        </p>
-        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '4px', letterSpacing: '1px', textTransform: 'uppercase' }}>
-          tokens de sesión · 5h
-        </p>
+        {showTokens ? (
+          <>
+            <p style={{ fontSize: '15px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', fontFamily: 'monospace', margin: 0 }}>
+              {tokens.toLocaleString()}
+              <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 6px' }}>/</span>
+              {limit.toLocaleString()}
+            </p>
+            <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '4px', letterSpacing: '1px', textTransform: 'uppercase' }}>
+              tokens de sesión · 5h
+            </p>
+          </>
+        ) : (
+          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '4px', letterSpacing: '1px', textTransform: 'uppercase' }}>
+            sesión · 5 horas
+          </p>
+        )}
       </div>
     </div>
   );

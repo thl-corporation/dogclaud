@@ -126,12 +126,12 @@ export function formatCountdownWeekly(targetTime: Date): string {
 }
 
 export function getPercentageColor(percentage: number): string {
-  if (percentage >= 100) return '#B91C1C';
-  if (percentage >= 95) return '#DC2626';
-  if (percentage >= 90) return '#EF4444';
-  if (percentage >= 75) return '#F97316';
-  if (percentage >= 50) return '#EAB308';
-  if (percentage >= 25) return '#3B82F6';
+  if (percentage >= 100) return '#EF4444';
+  if (percentage >= 95)  return '#DC2626';
+  if (percentage >= 90)  return '#F97316';
+  if (percentage >= 75)  return '#EAB308';
+  if (percentage >= 50)  return '#EAB308';
+  if (percentage >= 25)  return '#3B82F6';
   return '#22C55E';
 }
 

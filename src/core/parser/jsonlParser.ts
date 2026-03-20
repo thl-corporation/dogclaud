@@ -9,30 +9,30 @@ export function getClaudeLogPaths(): string[] {
   const homeDir = os.homedir();
   const claudeDir = path.join(homeDir, '.claude');
   const paths: string[] = [];
-  
+
   const projectsDir = path.join(claudeDir, 'projects');
   if (fs.existsSync(projectsDir)) {
-    try {
-      const projectDirs = fs.readdirSync(projectsDir, { withFileTypes: true })
-        .filter(d => d.isDirectory())
-        .map(d => path.join(projectsDir, d.name));
-      
-      for (const projDir of projectDirs) {
-        try {
-          const projFiles = fs.readdirSync(projDir)
-            .filter(f => f.endsWith('.jsonl'))
-            .map(f => path.join(projDir, f));
-          paths.push(...projFiles);
-        } catch {
-          // Skip inaccessible directories
-        }
-      }
-    } catch {
-      // Skip if projects directory can't be read
-    }
+    findJsonlFiles(projectsDir, paths, 0);
   }
-  
+
   return paths;
+}
+
+function findJsonlFiles(dir: string, results: string[], depth: number): void {
+  if (depth > 4) return; // Prevent excessive recursion
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isFile() && entry.name.endsWith('.jsonl')) {
+        results.push(fullPath);
+      } else if (entry.isDirectory()) {
+        findJsonlFiles(fullPath, results, depth + 1);
+      }
+    }
+  } catch {
+    // Skip inaccessible directories
+  }
 }
 
 export async function parseTokenEvents(filePath: string, lastPosition?: number): Promise<TokenEvent[]> {
@@ -92,44 +92,58 @@ export async function parseTokenEvents(filePath: string, lastPosition?: number):
   }
 }
 
+function sumUsageTokens(usage: Record<string, unknown>): number {
+  let total = 0;
+  total += Number(usage.input_tokens || 0);
+  total += Number(usage.output_tokens || 0);
+  total += Number(usage.cache_creation_input_tokens || 0);
+  total += Number(usage.cache_read_input_tokens || 0);
+  return total;
+}
+
 function parseLine(line: string): TokenEvent | null {
   try {
     const data = JSON.parse(line);
-    
+
     // Check for message.usage format (Claude Code format)
     if (data.type === 'assistant' && data.message && data.message.usage) {
       const usage = data.message.usage;
+      const tokens = sumUsageTokens(usage);
+      if (tokens === 0) return null;
       const timestamp = data.timestamp ? new Date(data.timestamp).getTime() : Date.now();
-      
+
       return {
         type: 'output',
-        tokens: (usage.input_tokens || 0) + (usage.output_tokens || 0),
+        tokens,
         timestamp,
         sessionId: data.sessionId
       };
     }
-    
+
     // Check for direct usage object
     if (data.usage) {
-      const usage = data.usage;
+      const tokens = sumUsageTokens(data.usage);
+      if (tokens === 0) return null;
       return {
         type: 'output',
-        tokens: (usage.input_tokens || 0) + (usage.output_tokens || 0),
+        tokens,
         timestamp: data.timestamp ? new Date(data.timestamp).getTime() : Date.now(),
         sessionId: data.sessionId
       };
     }
-    
-    // Check for token counts
+
+    // Check for token counts at top level
     if (typeof data.input_tokens === 'number' || typeof data.output_tokens === 'number') {
+      const tokens = sumUsageTokens(data);
+      if (tokens === 0) return null;
       return {
         type: 'output',
-        tokens: (data.input_tokens || 0) + (data.output_tokens || 0),
+        tokens,
         timestamp: data.timestamp ? new Date(data.timestamp).getTime() : Date.now(),
         sessionId: data.sessionId
       };
     }
-    
+
     return null;
   } catch {
     return null;

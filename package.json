@@ -50,12 +50,20 @@
     },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*"
+      "dist-electron/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "assets",
+        "to": "assets"
+      }
     ],
     "linux": {
       "target": ["AppImage", "deb"],
       "category": "Utility",
-      "maintainer": "eliezer@example.com"
+      "maintainer": "eliezer@example.com",
+      "icon": "assets/dog-512.png"
     },
     "win": {
       "target": ["nsis"]

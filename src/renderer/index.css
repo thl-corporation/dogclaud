@@ -86,3 +86,39 @@ select option {
 .animate-blink {
   animation: blink 1s ease-in-out infinite;
 }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 200px; }
+}
+
+/* Toast notification */
+.toast-enter {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Focus states for accessibility (#8) */
+button:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+button:active {
+  opacity: 0.8;
+}
+
+/* Refresh spin animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

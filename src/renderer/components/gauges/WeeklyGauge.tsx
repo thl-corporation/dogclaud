@@ -6,6 +6,7 @@ interface WeeklyGaugeProps {
   limit: number;
   countdown: string;
   color: string;
+  showTokens?: boolean;
 }
 
 export const WeeklyGauge: React.FC<WeeklyGaugeProps> = ({
@@ -13,7 +14,8 @@ export const WeeklyGauge: React.FC<WeeklyGaugeProps> = ({
   tokens,
   limit,
   countdown,
-  color
+  color,
+  showTokens = true,
 }) => {
   const size = 160;
   const strokeWidth = 10;
@@ -101,14 +103,22 @@ export const WeeklyGauge: React.FC<WeeklyGaugeProps> = ({
       </div>
 
       <div style={{ marginTop: '14px', textAlign: 'center' }}>
-        <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.75)', fontFamily: 'monospace', margin: 0 }}>
-          {tokens.toLocaleString()}
-          <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 5px' }}>/</span>
-          {limit.toLocaleString()}
-        </p>
-        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '3px', letterSpacing: '1px', textTransform: 'uppercase' }}>
-          tokens · 7 días
-        </p>
+        {showTokens ? (
+          <>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.75)', fontFamily: 'monospace', margin: 0 }}>
+              {tokens.toLocaleString()}
+              <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 5px' }}>/</span>
+              {limit.toLocaleString()}
+            </p>
+            <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '3px', letterSpacing: '1px', textTransform: 'uppercase' }}>
+              tokens · 7 días
+            </p>
+          </>
+        ) : (
+          <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginTop: '3px', letterSpacing: '1px', textTransform: 'uppercase' }}>
+            semanal · 7 días
+          </p>
+        )}
       </div>
     </div>
   );

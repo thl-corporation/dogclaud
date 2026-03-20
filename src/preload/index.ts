@@ -35,8 +35,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('usage-update', (_event, usage) => callback(usage));
   },
   
-  updateTrayIcon: (percentage: number, color: string): void => {
-    ipcRenderer.send('update-tray-icon', percentage, color);
+  updateTrayIcon: (percentage: number, color: string, resetTime?: string): void => {
+    ipcRenderer.send('update-tray-icon', percentage, color, resetTime);
   },
   
   updateTrayTooltip: (sessionPct: number, weeklyPct: number): void => {

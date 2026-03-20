@@ -84,7 +84,7 @@ export interface IElectronAPI {
   minimizeToTray: () => void;
   showWindow: () => void;
   quit: () => void;
-  updateTrayIcon: (percentage: number, color: string) => void;
+  updateTrayIcon: (percentage: number, color: string, resetTime?: string) => void;
   updateTrayTooltip: (sessionPct: number, weeklyPct: number) => void;
   silenceAlert: (threshold: number) => void;
   onShowAlert: (callback: (data: { threshold: number; message: string }) => void) => void;

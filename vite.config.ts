@@ -3,8 +3,9 @@ import react from '@vitejs/plugin-react';
 import electron from 'vite-plugin-electron';
 import renderer from 'vite-plugin-electron-renderer';
 import path from 'path';
+import fs from 'fs';
 
-export default defineConfig({
+const viteConfig = defineConfig({
   plugins: [
     react(),
     electron([
@@ -43,6 +44,10 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: 'dist'
-  }
+    outDir: 'dist',
+    assetsInlineLimit: 0
+  },
+  publicDir: 'public'
 });
+
+export default viteConfig;
