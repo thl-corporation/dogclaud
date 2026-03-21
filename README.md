@@ -77,7 +77,7 @@ sudo dpkg -i claude-usage-tracker_1.0.0_amd64.deb
 ### Setup
 ```bash
 # Clonar el repositorio
-git clone https://github.com/eliezer/claude-usage-tracker.git
+git clone https://github.com/thl-corporation-spa/claude-usage-tracker.git
 cd claude-usage-tracker
 
 # Instalar dependencias
