@@ -43,6 +43,10 @@ const viteConfig = defineConfig({
       '@shared': path.resolve(__dirname, 'src/shared')
     }
   },
+  server: {
+    port: 61983,
+    strictPort: true
+  },
   build: {
     outDir: 'dist',
     assetsInlineLimit: 0

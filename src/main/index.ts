@@ -342,8 +342,8 @@ function createWindow(): void {
     }
   });
 
-  if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
-    mainWindow.loadURL('http://localhost:5173');
+  if (process.env.VITE_DEV_SERVER === 'true') {
+    mainWindow.loadURL('http://localhost:61983');
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
