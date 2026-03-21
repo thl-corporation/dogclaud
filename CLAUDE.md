@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DogClaud es una aplicación desktop Electron que monitorea el uso de tokens de Claude Code en tiempo real. Tiene dos fuentes de datos: lectura de archivos JSONL de `~/.claude/projects/` (estimación local) y sincronización directa con la API web de claude.ai (datos reales). Calcula el consumo de tokens en ventanas de sesión (5h) y semanal (7d) contra límites del plan (Pro/Max5/Max20), y muestra gauges de uso con alertas visuales/audio en umbrales configurables. UI escrita en español.
+**DogClaud** es una aplicación desktop Electron que monitorea el uso de tokens de Claude Code en tiempo real. Tiene dos fuentes de datos: lectura de archivos JSONL de `~/.claude/projects/` (estimación local) y sincronización directa con la API web de claude.ai (datos reales). Calcula el consumo de tokens en ventanas de sesión (5h) y semanal (7d) contra límites del plan (Pro/Max5/Max20), y muestra gauges de uso con alertas visuales/audio en umbrales configurables. UI escrita en español. Nombre de la app: **DogClaud** (appId: `com.thlcorporation.dogclaud`).
 
 ## Commands
 
@@ -27,7 +27,7 @@ DogClaud es una aplicación desktop Electron que monitorea el uso de tokens de C
 
 **Preload** (`src/preload/index.ts`) — Expone `window.electronAPI` via contextBridge. Toda comunicación renderer↔main pasa por esta API tipada (interfaz `IElectronAPI` en `src/shared/types.ts`).
 
-**Renderer** (`src/renderer/`) — React 18 + Tailwind CSS. Entry en `main.tsx`, layout principal en `App.tsx` que orquesta todo: tabs, gauges, alertas con sonido, web session, y configuración.
+**Renderer** (`src/renderer/`) — React 18 + Tailwind CSS. Entry en `main.tsx`, layout principal en `App.tsx` que orquesta todo: tabs, gauges, alertas con sonido, web session, configuración y footer "con amor THL Corporation".
 
 ### Core logic (`src/core/`)
 
@@ -54,7 +54,7 @@ Hay dos sistemas de alertas que operan en paralelo pero con fuente única según
 
 **Main process** (`checkAlerts` en `src/main/index.ts`):
 - Dispara notificaciones nativas del SO (Notification API de Electron)
-- Envía evento `show-alert` al renderer
+- Itera umbrales de mayor a menor (100→25), dispara UNA sola notificación (la más alta cruzada), marca todos los inferiores como alertados, y hace `break`
 - Cuando hay web conectada (`isWebConnected`), **solo** se ejecuta desde `pushWebUsage` con porcentaje web
 - Cuando NO hay web, se ejecuta desde `updateUsage` con porcentaje JSONL
 - Gateado por `hasInitialSyncCompleted` — no se dispara hasta que la primera sincronización completa
@@ -62,13 +62,13 @@ Hay dos sistemas de alertas que operan en paralelo pero con fuente única según
 **Renderer** (`checkAlerts` en `src/renderer/App.tsx`):
 - Reproduce sonidos con Web Audio API via `playTone()`
 - Gateado por `hasSyncedRef` — no se dispara hasta que llegan datos (web o JSONL)
-- Al activarse, pre-puebla `alertedRef` con todos los umbrales ya superados EXCEPTO el más alto, para que solo dispare la alerta correspondiente al porcentaje actual
+- Itera umbrales de mayor a menor, dispara UN solo sonido, marca todos los inferiores como alertados
 
-**Regla clave:** Las alertas NO se disparan al iniciar la app. Se activan después de la primera sincronización exitosa (web o JSONL). Al sincronizar, solo se dispara UNA alerta (la del umbral más alto alcanzado), no todas las anteriores.
+**Regla clave — NINGUNA alerta al iniciar:** Al sincronizar (web o JSONL), se pre-pueblan TODOS los umbrales ya superados en `alertedRef`/`alertedThresholds`. Esto significa que NINGUNA alerta suena al arrancar la app. Las alertas solo suenan cuando el porcentaje SUBE y cruza un NUEVO umbral después del sync inicial. Esta es una decisión de diseño explícita del usuario.
 
 ### Tray icon y menú
 
-- Cuando hay web conectada, `updateUsage()` (JSONL) NO actualiza el tray icon ni el menú contextual — solo `pushWebUsage()` lo hace con datos web
+- Cuando hay web conectada, `updateUsage()` (JSONL) NO actualiza el tray icon, tooltip ni el menú contextual — solo `pushWebUsage()` lo hace con datos web
 - Cuando NO hay web, `updateUsage()` actualiza tray normalmente con datos JSONL
 - Esto evita que aparezcan porcentajes conflictivos entre las dos fuentes de datos
 
@@ -87,6 +87,7 @@ Hay dos sistemas de alertas que operan en paralelo pero con fuente única según
 - Flujo: `/api/bootstrap` → detecta org → `/api/organizations/{id}/usage` + `/rate_limits` + `/chat_conversations`
 - Cookies se re-guardan cada 30s y antes de cerrar la app
 - `isWebConnected` controla qué flujo (JSONL vs web) maneja alertas y tray
+- Fallback: si no hay web después de 15s, se habilitan alertas desde JSONL pre-poblando todos los umbrales superados
 
 ### IPC channels
 
@@ -101,6 +102,7 @@ Hay dos sistemas de alertas que operan en paralelo pero con fuente única según
 - Animaciones CSS definidas en `index.css`: `pulse`, `blink`, `fadeIn`, `spin`.
 - Todos los strings de UI en español.
 - Toast de confirmación al guardar configuración (2.5s auto-dismiss).
+- Footer fijo: "con amor THL Corporation".
 
 ## Build & Config
 
@@ -108,6 +110,15 @@ Hay dos sistemas de alertas que operan en paralelo pero con fuente única según
 - Path aliases: `@/` → `src/`, `@shared/` → `src/shared/`
 - TypeScript strict con `noUnusedLocals` y `noUnusedParameters`
 - electron-builder config en `package.json` bajo `"build"`; output en `release/`
+- appId: `com.thlcorporation.dogclaud`, productName: `DogClaud`
 - Targets: Linux (AppImage + deb), macOS (zip), Windows (nsis)
-- Icono de app: `assets/dog-emoji-512.png` (generado desde 256px). Iconos de tray: `assets/dog-emoji-{color}.png`
+- Icono de app: `assets/dog-emoji-512.png`. Iconos de tray: `assets/dog-emoji-{color}.png`
 - Tipos compartidos en `src/shared/types.ts` (incluye `IElectronAPI`, `PlanType`, `UsageData`, `TokenEvent`, `AppSettings`, `AlertConfig`)
+- Settings store: `dogclaud-settings` (electron-store)
+- Cookie store: `claude-web-cookies` (electron-store)
+
+## Seguridad
+
+- Los `console.log` del main process NO exponen UUIDs, nombres de org, emails ni valores de cookies — solo cuentas y estados genéricos
+- No hay API keys, tokens ni credenciales hardcodeadas en el código fuente
+- Las cookies de sesión web se almacenan localmente via electron-store, nunca se transmiten a terceros
