@@ -51,10 +51,10 @@ Si usas **Claude Code** a diario, conoces esto: estas en medio de un refactor im
 
 ### Sistema de alertas inteligente
 - 6 umbrales: 25%, 50%, 75%, 90%, 95%, 100%
-- 3 pitidos con frecuencia unica por nivel (1kHz a 4kHz)
+- Pitidos con frecuencia unica por nivel.
 - Notificaciones nativas del sistema operativo
-- **Cero alertas al iniciar** — solo dispara cuando el uso SUBE y cruza un nuevo umbral
-- Silenciables individualmente
+- **alertas de disparan cuando el uso SUBE y cruza un nuevo umbral
+- Silenciables.
 
 ### Icono vivo en la bandeja del sistema
 - Cambia de color segun tu consumo actual
