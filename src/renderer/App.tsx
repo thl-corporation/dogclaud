@@ -295,34 +295,19 @@ function App() {
     }
   }, [effectiveSessionPct, effectiveWeeklyPct, sessionCountdown]);
 
-  // When first web sync completes, fire ONLY the highest current threshold
-  // Pre-populate all lower thresholds so they don't fire retroactively
+  // When first sync completes, mark ALL currently exceeded thresholds as already alerted
+  // Alerts only fire for NEW threshold crossings AFTER this point
   useEffect(() => {
-    if (!hasSyncedRef.current && hasWebData) {
+    if (!hasSyncedRef.current && (hasWebData || isConnected)) {
       hasSyncedRef.current = true;
-      // Find all exceeded thresholds, mark ALL as alerted EXCEPT the highest
-      const exceededThresholds = ALERT_THRESHOLDS.filter(t => effectiveSessionPct >= t.threshold);
-      for (let i = 0; i < exceededThresholds.length - 1; i++) {
-        alertedRef.current.add(exceededThresholds[i].threshold);
-      }
-    }
-  }, [hasWebData, effectiveSessionPct]);
-
-  // Fallback: if no web data after 20s, enable alerts from JSONL
-  // Pre-populate all exceeded thresholds except the highest
-  useEffect(() => {
-    if (hasSyncedRef.current) return;
-    const timeout = setTimeout(() => {
-      if (!hasSyncedRef.current && isConnected) {
-        hasSyncedRef.current = true;
-        const exceededThresholds = ALERT_THRESHOLDS.filter(t => effectiveSessionPct >= t.threshold);
-        for (let i = 0; i < exceededThresholds.length - 1; i++) {
-          alertedRef.current.add(exceededThresholds[i].threshold);
+      // Mark ALL exceeded thresholds — no alert sounds on startup
+      for (const threshold of ALERT_THRESHOLDS) {
+        if (effectiveSessionPct >= threshold.threshold) {
+          alertedRef.current.add(threshold.threshold);
         }
       }
-    }, 20000);
-    return () => clearTimeout(timeout);
-  }, [isConnected, effectiveSessionPct]);
+    }
+  }, [hasWebData, isConnected, effectiveSessionPct]);
 
   // Check alerts when session percentage changes
   useEffect(() => {
@@ -443,7 +428,7 @@ function App() {
           </div>
           <div>
             <h1 style={{ margin: 0, fontSize: '15px', fontWeight: 700, letterSpacing: '0.3px' }}>
-              Claude Usage Tracker
+              DogClaud
             </h1>
             <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.5px' }}>
               {userInfo.plan ? `Plan ${userInfo.plan.toUpperCase()}` : 'Detectando plan...'}

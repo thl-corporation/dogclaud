@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Claude Usage Tracker es una aplicación desktop Electron que monitorea el uso de tokens de Claude Code en tiempo real. Tiene dos fuentes de datos: lectura de archivos JSONL de `~/.claude/projects/` (estimación local) y sincronización directa con la API web de claude.ai (datos reales). Calcula el consumo de tokens en ventanas de sesión (5h) y semanal (7d) contra límites del plan (Pro/Max5/Max20), y muestra gauges de uso con alertas visuales/audio en umbrales configurables. UI escrita en español.
+DogClaud es una aplicación desktop Electron que monitorea el uso de tokens de Claude Code en tiempo real. Tiene dos fuentes de datos: lectura de archivos JSONL de `~/.claude/projects/` (estimación local) y sincronización directa con la API web de claude.ai (datos reales). Calcula el consumo de tokens en ventanas de sesión (5h) y semanal (7d) contra límites del plan (Pro/Max5/Max20), y muestra gauges de uso con alertas visuales/audio en umbrales configurables. UI escrita en español.
 
 ## Commands
 

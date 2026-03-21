@@ -1,11 +1,11 @@
-# Contribuir a Claude Usage Tracker
+# Contribuir a DogClaud
 
 Gracias por tu interes en contribuir. Aqui te explicamos como hacerlo.
 
 ## Como contribuir
 
 1. **Fork** el repositorio
-2. Clona tu fork: `git clone https://github.com/TU-USUARIO/claude-usage-tracker.git`
+2. Clona tu fork: `git clone https://github.com/TU-USUARIO/dogclaud.git`
 3. Crea una rama: `git checkout -b mi-mejora`
 4. Instala dependencias: `npm install`
 5. Desarrolla con: `npm run electron:dev`
@@ -36,4 +36,4 @@ src/
 
 ## Reporte de bugs
 
-Usa los [issue templates](https://github.com/thl-corporation-spa/claude-usage-tracker/issues/new/choose) para reportar bugs o sugerir funcionalidades.
+Usa los [issue templates](https://github.com/thl-corporation-spa/dogclaud/issues/new/choose) para reportar bugs o sugerir funcionalidades.

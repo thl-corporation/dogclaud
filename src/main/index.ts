@@ -322,7 +322,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 function initStore(): void {
   settingsStore = new Store<Record<string, unknown>>({
-    name: 'claude-usage-tracker-settings',
+    name: 'dogclaud-settings',
     defaults: DEFAULT_SETTINGS as unknown as Record<string, unknown>
   });
   cookieStore = new Store<Record<string, unknown>>({
@@ -396,7 +396,7 @@ function createTray(): void {
   }
   
   tray = new Tray(icon);
-  tray.setToolTip('Claude Usage Tracker - Iniciando...');
+  tray.setToolTip('DogClaud - Iniciando...');
   
   updateTrayMenu(0, 0);
   
@@ -496,7 +496,7 @@ async function updateUsage(): Promise<void> {
         const resetTimeStr = resetTimes.sessionResetTime
           ? formatCountdown(new Date(resetTimes.sessionResetTime))
           : '--:--';
-        tray.setToolTip(`Claude Usage Tracker\nSesión: ${Math.round(sessionPct)}% | Reset: ${resetTimeStr}`);
+        tray.setToolTip(`DogClaud\nSesión: ${Math.round(sessionPct)}% | Reset: ${resetTimeStr}`);
       }
       updateTrayMenu(sessionPct, weeklyPct);
     }
@@ -574,7 +574,7 @@ function checkAlerts(percentage: number, alertsEnabled: boolean): void {
       const iconData = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : undefined;
 
       new Notification({
-        title: '🐕 Claude Usage Tracker',
+        title: '🐕 DogClaud',
         body: messages[threshold],
         urgency: threshold >= 95 ? 'critical' : 'normal',
         icon: iconData
@@ -773,7 +773,7 @@ function setupIPC(): void {
       const icon = createTrayIcon(percentage, color);
       tray.setImage(icon);
       const timeStr = resetTime || '--:--';
-      tray.setToolTip(`Claude Usage Tracker\nSesión: ${Math.round(percentage)}% | Reset: ${timeStr}`);
+      tray.setToolTip(`DogClaud\nSesión: ${Math.round(percentage)}% | Reset: ${timeStr}`);
     }
   });
   
@@ -819,7 +819,7 @@ app.whenReady().then(async () => {
   setInterval(updateUsage, 5000);
 
   // Fallback: if web sync hasn't completed after 15s, enable alerts from JSONL
-  // Pre-populate exceeded thresholds so only the highest one fires
+  // Pre-populate ALL exceeded thresholds — no alerts on startup
   setTimeout(async () => {
     if (!hasInitialSyncCompleted) {
       hasInitialSyncCompleted = true;
@@ -834,9 +834,8 @@ app.whenReady().then(async () => {
         const usage = calculateUsage(allEvts, settings.plan);
         const pct = usage.sessionLimit > 0 ? (usage.sessionTokens / usage.sessionLimit) * 100 : 0;
         const thresholds = [25, 50, 75, 90, 95, 100];
-        const exceeded = thresholds.filter(t => pct >= t);
-        for (let i = 0; i < exceeded.length - 1; i++) {
-          alertedThresholds.add(exceeded[i]);
+        for (const t of thresholds) {
+          if (pct >= t) alertedThresholds.add(t);
         }
       } catch { /* ignore */ }
     }
@@ -849,8 +848,8 @@ app.whenReady().then(async () => {
     const result = await fetchAllWebUsage();
     isWebConnected = result.connected;
 
-    // After first successful web sync, enable alerts but only fire the highest exceeded threshold
-    // Pre-populate all lower thresholds so they don't fire retroactively
+    // After first successful web sync, mark ALL exceeded thresholds as already alerted
+    // No alerts on startup — only fire for NEW threshold crossings after this point
     if (result.connected && !hasInitialSyncCompleted) {
       hasInitialSyncCompleted = true;
       const usageForSync = result.usage as Record<string, unknown> | null;
@@ -866,12 +865,9 @@ app.whenReady().then(async () => {
               ? (fhData.utilization / limit) * 100
               : fhData.utilization;
             const thresholds = [25, 50, 75, 90, 95, 100];
-            // Find all exceeded thresholds, mark all EXCEPT the highest as already alerted
-            const exceeded = thresholds.filter(t => pct >= t);
-            for (let i = 0; i < exceeded.length - 1; i++) {
-              alertedThresholds.add(exceeded[i]);
+            for (const t of thresholds) {
+              if (pct >= t) alertedThresholds.add(t);
             }
-            // The highest exceeded threshold is NOT added, so checkAlerts will fire only that one
           }
         }
       }
@@ -902,7 +898,7 @@ app.whenReady().then(async () => {
               const resetTime = fh.resets_at
                 ? formatCountdown(new Date(fh.resets_at))
                 : '--:--';
-              tray.setToolTip(`Claude Usage Tracker\nSesión: ${Math.round(pct)}% | Reset: ${resetTime}`);
+              tray.setToolTip(`DogClaud\nSesión: ${Math.round(pct)}% | Reset: ${resetTime}`);
             }
             const sd = fiveHour.seven_day as { utilization?: number } | undefined;
             const weeklyPct = sd?.utilization && sd.utilization > 100

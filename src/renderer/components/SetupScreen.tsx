@@ -120,7 +120,7 @@ export const SetupScreen: React.FC<SetupScreenProps> = ({ installed, loggedIn, o
       </div>
 
       <h1 style={{ margin: '0 0 8px', fontSize: '24px', fontWeight: 800, textAlign: 'center' }}>
-        Claude Usage Tracker
+        DogClaud
       </h1>
       <p style={{ margin: '0 0 40px', fontSize: '14px', color: 'rgba(255,255,255,0.45)', textAlign: 'center', maxWidth: '400px' }}>
         Necesita que Claude Code CLI esté instalado y con sesión iniciada para funcionar.

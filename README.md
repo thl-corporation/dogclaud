@@ -1,19 +1,19 @@
 <p align="center">
-  <img src="assets/dog-emoji-256.png" alt="Claude Usage Tracker" width="120">
+  <img src="assets/dog-emoji-256.png" alt="DogClaud" width="120">
 </p>
 
-<h1 align="center">Claude Usage Tracker</h1>
+<h1 align="center">DogClaud</h1>
 
 <p align="center">
   <strong>Nunca mas te quedes sin tokens a mitad de una sesion.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/thl-corporation-spa/claude-usage-tracker/releases"><img src="https://img.shields.io/github/v/release/thl-corporation-spa/claude-usage-tracker?style=flat-square&color=6366f1" alt="Release"></a>
-  <a href="https://github.com/thl-corporation-spa/claude-usage-tracker/blob/main/LICENSE"><img src="https://img.shields.io/github/license/thl-corporation-spa/claude-usage-tracker?style=flat-square&color=22c55e" alt="License"></a>
-  <a href="https://github.com/thl-corporation-spa/claude-usage-tracker/stargazers"><img src="https://img.shields.io/github/stars/thl-corporation-spa/claude-usage-tracker?style=flat-square&color=eab308" alt="Stars"></a>
-  <a href="https://github.com/thl-corporation-spa/claude-usage-tracker/issues"><img src="https://img.shields.io/github/issues/thl-corporation-spa/claude-usage-tracker?style=flat-square&color=ef4444" alt="Issues"></a>
-  <a href="https://github.com/thl-corporation-spa/claude-usage-tracker/releases"><img src="https://img.shields.io/github/downloads/thl-corporation-spa/claude-usage-tracker/total?style=flat-square&color=3b82f6" alt="Downloads"></a>
+  <a href="https://github.com/thl-corporation-spa/dogclaud/releases"><img src="https://img.shields.io/github/v/release/thl-corporation-spa/dogclaud?style=flat-square&color=6366f1" alt="Release"></a>
+  <a href="https://github.com/thl-corporation-spa/dogclaud/blob/main/LICENSE"><img src="https://img.shields.io/github/license/thl-corporation-spa/dogclaud?style=flat-square&color=22c55e" alt="License"></a>
+  <a href="https://github.com/thl-corporation-spa/dogclaud/stargazers"><img src="https://img.shields.io/github/stars/thl-corporation-spa/dogclaud?style=flat-square&color=eab308" alt="Stars"></a>
+  <a href="https://github.com/thl-corporation-spa/dogclaud/issues"><img src="https://img.shields.io/github/issues/thl-corporation-spa/dogclaud?style=flat-square&color=ef4444" alt="Issues"></a>
+  <a href="https://github.com/thl-corporation-spa/dogclaud/releases"><img src="https://img.shields.io/github/downloads/thl-corporation-spa/dogclaud/total?style=flat-square&color=3b82f6" alt="Downloads"></a>
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@ Si usas **Claude Code** a diario, conoces esto: estas en medio de un refactor im
 
 ## La solucion
 
-Claude Usage Tracker es una app de escritorio que vive en tu bandeja del sistema. Se conecta directamente con tu cuenta de **claude.ai**, monitorea tu consumo real de tokens en silencio, y te alerta con tiempo suficiente para que tomes decisiones inteligentes.
+**DogClaud** es una app de escritorio que vive en tu bandeja del sistema. Se conecta directamente con tu cuenta de **claude.ai**, monitorea tu consumo real de tokens en silencio, y te alerta con tiempo suficiente para que tomes decisiones inteligentes.
 
 **No estima. Sabe exactamente cuanto has usado y cuanto te queda.**
 
@@ -82,23 +82,23 @@ Claude Usage Tracker es una app de escritorio que vive en tu bandeja del sistema
 ### Linux
 ```bash
 # AppImage (cualquier distro)
-chmod +x "Claude Usage Tracker-1.0.0.AppImage"
-./"Claude Usage Tracker-1.0.0.AppImage"
+chmod +x "DogClaud-1.0.0.AppImage"
+./"DogClaud-1.0.0.AppImage"
 
 # Debian / Ubuntu
-sudo dpkg -i claude-usage-tracker_1.0.0_amd64.deb
+sudo dpkg -i dogclaud_1.0.0_amd64.deb
 ```
 
 ### macOS
-Descarga el `.zip` desde [Releases](https://github.com/thl-corporation-spa/claude-usage-tracker/releases), descomprime y arrastra a Aplicaciones.
+Descarga el `.zip` desde [Releases](https://github.com/thl-corporation-spa/dogclaud/releases), descomprime y arrastra a Aplicaciones.
 
 ### Windows
 ```bash
-git clone https://github.com/thl-corporation-spa/claude-usage-tracker.git
-cd claude-usage-tracker && npm install && npm run dist:win
+git clone https://github.com/thl-corporation-spa/dogclaud.git
+cd dogclaud && npm install && npm run dist:win
 ```
 
-> Descarga los binarios desde la pagina de [**Releases**](https://github.com/thl-corporation-spa/claude-usage-tracker/releases).
+> Descarga los binarios desde la pagina de [**Releases**](https://github.com/thl-corporation-spa/dogclaud/releases).
 
 ---
 
@@ -115,8 +115,8 @@ cd claude-usage-tracker && npm install && npm run dist:win
 ## Desarrollo
 
 ```bash
-git clone https://github.com/thl-corporation-spa/claude-usage-tracker.git
-cd claude-usage-tracker
+git clone https://github.com/thl-corporation-spa/dogclaud.git
+cd dogclaud
 npm install
 
 npm run electron:dev     # App completa

@@ -1,9 +1,9 @@
 {
-  "name": "claude-usage-tracker",
+  "name": "dogclaud",
   "version": "1.0.0",
-  "description": "Monitor your Claude Code token usage in real-time with alerts and scheduling",
+  "description": "Monitorea tu uso de tokens de Claude Code en tiempo real con datos reales y alertas inteligentes",
   "main": "dist-electron/main/index.js",
-  "homepage": "https://github.com/thl-corporation-spa/claude-usage-tracker",
+  "homepage": "https://github.com/thl-corporation-spa/dogclaud",
   "author": {
     "name": "Eliezer Lopez M.",
     "email": "admin@thlcorporation.com"
@@ -18,7 +18,7 @@
     "dist:linux": "npm run build && electron-builder --linux",
     "dist:mac": "npm run build && electron-builder --mac"
   },
-  "keywords": ["claude", "usage", "tracker", "electron", "tokens"],
+  "keywords": ["dogclaud", "claude", "claude-code", "usage", "tracker", "electron", "tokens"],
   "license": "MIT",
   "dependencies": {
     "chokidar": "^3.6.0",
@@ -43,8 +43,8 @@
     "vite-plugin-electron-renderer": "^0.14.5"
   },
   "build": {
-    "appId": "com.claude.usagetracker",
-    "productName": "Claude Usage Tracker",
+    "appId": "com.thlcorporation.dogclaud",
+    "productName": "DogClaud",
     "directories": {
       "output": "release"
     },
