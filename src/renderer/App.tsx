@@ -262,38 +262,34 @@ function App() {
 
   const hasWebData = typeof webFiveHour?.utilization === 'number' || typeof webSevenDay?.utilization === 'number';
 
-  // Use web API data when connected, fallback to JSONL data
+  // Use web API data when connected; show 0 when no web session
   const effectiveSessionPct = hasWebData && typeof webFiveHour?.utilization === 'number'
-    ? webFiveHour.utilization > 100
-        ? (webFiveHour.utilization / sessionLimit) * 100
-        : webFiveHour.utilization
-    : sessionPercentage;
+    ? Math.min(webFiveHour.utilization, 100)
+    : webConnected ? sessionPercentage : 0;
   const effectiveWeeklyPct = hasWebData && typeof webSevenDay?.utilization === 'number'
-    ? webSevenDay.utilization > 100
-        ? (webSevenDay.utilization / weeklyLimit) * 100
-        : webSevenDay.utilization
-    : weeklyPercentage;
+    ? Math.min(webSevenDay.utilization, 100)
+    : webConnected ? weeklyPercentage : 0;
 
   const sessionCountdown = hasWebData && webFiveHour?.resets_at
     ? formatCountdown(new Date(webFiveHour.resets_at))
-    : sessionResetTime
+    : webConnected && sessionResetTime
       ? formatCountdown(new Date(sessionResetTime))
       : '--:--';
 
   const weeklyCountdown = hasWebData && webSevenDay?.resets_at
     ? formatCountdownWeekly(new Date(webSevenDay.resets_at))
-    : weeklyResetTime
+    : webConnected && weeklyResetTime
       ? formatCountdownWeekly(new Date(weeklyResetTime))
       : '--d --h';
 
-  // Update tray icon whenever effective percentages change
+  // Update tray icon whenever effective percentages change (only when web connected)
   useEffect(() => {
-    if (window.electronAPI) {
+    if (window.electronAPI && webConnected) {
       const color = getPercentageColor(effectiveSessionPct);
       window.electronAPI.updateTrayIcon(effectiveSessionPct, color, sessionCountdown);
       window.electronAPI.updateTrayTooltip(effectiveSessionPct, effectiveWeeklyPct);
     }
-  }, [effectiveSessionPct, effectiveWeeklyPct, sessionCountdown]);
+  }, [effectiveSessionPct, effectiveWeeklyPct, sessionCountdown, webConnected]);
 
   // When first sync completes, mark ALL currently exceeded thresholds as already alerted
   // Alerts only fire for NEW threshold crossings AFTER this point
@@ -559,8 +555,8 @@ function App() {
             </div>
 
             {/* #2 + #7 - Gauges side by side */}
-            {effectiveSessionPct === 0 && effectiveWeeklyPct === 0 && !hasWebData ? (
-              /* #7 - Empty state */
+            {!webConnected ? (
+              /* Empty state — no web session */
               <div style={{
                 padding: '40px 20px',
                 background: 'rgba(255,255,255,0.03)',
@@ -570,10 +566,10 @@ function App() {
               }}>
                 <div style={{ fontSize: '40px', marginBottom: '16px', opacity: 0.5 }}>◈</div>
                 <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.5)', margin: '0 0 8px', fontWeight: 600 }}>
-                  Sin datos de uso todavía
+                  Sin sesión web activa
                 </p>
                 <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.25)', margin: 0, maxWidth: '300px', marginInline: 'auto', lineHeight: 1.5 }}>
-                  Empieza a usar Claude Code en algún proyecto y verás tu consumo de tokens aquí automáticamente.
+                  Conecta tu cuenta de claude.ai para ver datos reales de uso. Usa el botón "Conectar" más abajo.
                 </p>
               </div>
             ) : (

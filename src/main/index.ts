@@ -6,8 +6,7 @@ import Store from 'electron-store';
 import chokidar from 'chokidar';
 import { getClaudeLogPaths, parseTokenEvents, getClaudeUserInfo } from '../core/parser/jsonlParser';
 import { calculateUsage, calculateResetTimes, formatCountdown } from '../core/calculator/usageCalculator';
-import { PLAN_LIMITS } from '../core/constants';
-import { AppSettings, PlanType } from '../shared/types';
+import { AppSettings } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -396,9 +395,9 @@ function createTray(): void {
   }
   
   tray = new Tray(icon);
-  tray.setToolTip('DogClaud - Iniciando...');
-  
-  updateTrayMenu(0, 0);
+  tray.setToolTip('DogClaud - Sin sesión web');
+
+  updateTrayMenu(-1, -1);
   
   tray.on('click', () => {
     if (mainWindow) {
@@ -414,25 +413,27 @@ function createTray(): void {
 
 function updateTrayMenu(sessionPercentage: number, weeklyPercentage: number): void {
   if (!tray) return;
-  
+
   const settings = settingsStore.store as unknown as AppSettings;
-  const userInfo = getClaudeUserInfo();
-  
+  const noSession = sessionPercentage < 0;
+  const sessionPctClamped = Math.max(0, Math.min(Math.round(sessionPercentage), 100));
+  const weeklyPctClamped = Math.max(0, Math.min(Math.round(weeklyPercentage), 100));
+
   const contextMenu = Menu.buildFromTemplate([
-    { label: `👤 Usuario: ${userInfo.plan?.toUpperCase() || 'Unknown'}`, enabled: false },
+    { label: `⚙️ Plan: ${(settings.plan || 'pro').toUpperCase()}`, enabled: false },
     { type: 'separator' },
-    { label: `📊 Sesión: ${Math.round(sessionPercentage)}%`, enabled: false },
-    { label: `📅 Semanal: ${Math.round(weeklyPercentage)}%`, enabled: false },
+    { label: noSession ? '📊 Sesión: --' : `📊 Sesión: ${sessionPctClamped}%`, enabled: false },
+    { label: noSession ? '📅 Semanal: --' : `📅 Semanal: ${weeklyPctClamped}%`, enabled: false },
+    { type: 'separator' },
+    { label: noSession ? '🔌 Sin sesión web' : '🌐 Sesión web activa', enabled: false },
     { type: 'separator' },
     { label: '🔓 Abrir ventana principal', click: () => mainWindow?.show() },
-    { label: '💻 Iniciar Claude Code', click: () => shell.openPath('claude') },
     { type: 'separator' },
-    { label: `⚙️ Plan: ${(settings.plan || 'pro').toUpperCase()}`, enabled: false },
     { label: `🔔 Alertas: ${settings.alertsEnabled ? 'Activadas' : 'Desactivadas'}`, enabled: false },
     { type: 'separator' },
     { label: '❌ Salir', click: () => { isQuitting = true; app.quit(); } }
   ]);
-  
+
   tray.setContextMenu(contextMenu);
 }
 
@@ -484,36 +485,21 @@ async function updateUsage(): Promise<void> {
     const usage = calculateUsage(allEvents, settings.plan);
     const resetTimes = calculateResetTimes(usage.sessionStartTime, usage.weeklyStartTime);
     
-    const sessionPct = usage.sessionLimit > 0 ? (usage.sessionTokens / usage.sessionLimit) * 100 : 0;
-    const weeklyPct = usage.weeklyLimit > 0 ? (usage.weeklyTokens / usage.weeklyLimit) * 100 : 0;
-    
-    // Update tray icon and menu ONLY if not connected to web API (web data takes precedence)
+    // When not connected to web, show neutral tray (no data)
     if (!isWebConnected) {
       if (tray) {
-        const color = getColorForPercentage(sessionPct);
-        const icon = createTrayIcon(sessionPct, color);
-        tray.setImage(icon);
-        const resetTimeStr = resetTimes.sessionResetTime
-          ? formatCountdown(new Date(resetTimes.sessionResetTime))
-          : '--:--';
-        tray.setToolTip(`DogClaud\nSesión: ${Math.round(sessionPct)}% | Reset: ${resetTimeStr}`);
+        tray.setToolTip('DogClaud - Sin sesión web');
       }
-      updateTrayMenu(sessionPct, weeklyPct);
+      updateTrayMenu(-1, -1);
     }
 
-    // Send to renderer
+    // Send JSONL data to renderer (for internal tracking, renderer decides what to show)
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('usage-update', {
         ...usage,
         sessionResetTime: resetTimes.sessionResetTime,
         weeklyResetTime: resetTimes.weeklyResetTime
       });
-    }
-
-    // Check alerts ONLY from JSONL when web is NOT connected
-    // When web is connected, alerts are handled by pushWebUsage flow
-    if (!isWebConnected) {
-      checkAlerts(sessionPct, settings.alertsEnabled as boolean);
     }
     
   } catch (error) {
@@ -858,12 +844,7 @@ app.whenReady().then(async () => {
         if (fhSync) {
           const fhData = fhSync.five_hour as { utilization?: number } | undefined;
           if (fhData && typeof fhData.utilization === 'number') {
-            const settings = settingsStore.store as unknown as AppSettings;
-            const plan = (settings.plan || 'pro') as PlanType;
-            const limit = PLAN_LIMITS[plan].sessionTokens;
-            const pct = fhData.utilization > 100
-              ? (fhData.utilization / limit) * 100
-              : fhData.utilization;
+            const pct = Math.min(fhData.utilization, 100);
             const thresholds = [25, 50, 75, 90, 95, 100];
             for (const t of thresholds) {
               if (pct >= t) alertedThresholds.add(t);
@@ -886,11 +867,7 @@ app.whenReady().then(async () => {
           const fh = fiveHour.five_hour as { utilization?: number; resets_at?: string } | undefined;
           if (fh && typeof fh.utilization === 'number') {
             const settings = settingsStore.store as unknown as AppSettings;
-            const plan = (settings.plan || 'pro') as PlanType;
-            const limit = PLAN_LIMITS[plan].sessionTokens;
-            const pct = fh.utilization > 100
-              ? (fh.utilization / limit) * 100
-              : fh.utilization;
+            const pct = Math.min(fh.utilization, 100);
             const color = getColorForPercentage(pct);
             const icon = createTrayIcon(pct, color);
             if (tray) {
@@ -901,9 +878,7 @@ app.whenReady().then(async () => {
               tray.setToolTip(`DogClaud\nSesión: ${Math.round(pct)}% | Reset: ${resetTime}`);
             }
             const sd = fiveHour.seven_day as { utilization?: number } | undefined;
-            const weeklyPct = sd?.utilization && sd.utilization > 100
-              ? (sd.utilization / PLAN_LIMITS[plan].weeklyTokens) * 100
-              : (sd?.utilization ?? 0);
+            const weeklyPct = Math.min(sd?.utilization ?? 0, 100);
             updateTrayMenu(pct, weeklyPct);
 
             // Check alerts using web percentage (single source of truth when connected)
