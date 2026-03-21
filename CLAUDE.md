@@ -104,9 +104,25 @@ Hay dos sistemas de alertas que operan en paralelo pero con fuente única según
 - Toast de confirmación al guardar configuración (2.5s auto-dismiss).
 - Footer fijo: "con amor THL Corporation".
 
+### Comportamiento sin sesión web
+
+- Sin sesión web activa, los gauges muestran "Sin sesión web" (estado vacío, sin datos JSONL)
+- El tray muestra "DogClaud - Sin sesión web" sin porcentajes
+- El menú contextual muestra "Sin sesión web" en vez de porcentajes
+- Los datos solo se muestran al conectar la cuenta de claude.ai
+
+### Porcentajes
+
+- `utilization` de la API de claude.ai es un porcentaje directo (0-100), no tokens raw
+- Todos los porcentajes se clampean a 0-100% máximo en tray, menú y gauges
+- No se divide `utilization` por límites de plan — ya viene como porcentaje
+
 ## Build & Config
 
 - Vite + vite-plugin-electron para build dual (renderer → `dist/`, main+preload → `dist-electron/`)
+- Dev server en puerto **61983** (no estándar, configurado en `vite.config.ts`)
+- `electron:dev` hace build estático + lanza Electron (carga desde `dist/`, no requiere dev server)
+- `npm run dev` levanta dev server con `VITE_DEV_SERVER=true` para hot reload
 - Path aliases: `@/` → `src/`, `@shared/` → `src/shared/`
 - TypeScript strict con `noUnusedLocals` y `noUnusedParameters`
 - electron-builder config en `package.json` bajo `"build"`; output en `release/`
@@ -122,3 +138,4 @@ Hay dos sistemas de alertas que operan en paralelo pero con fuente única según
 - Los `console.log` del main process NO exponen UUIDs, nombres de org, emails ni valores de cookies — solo cuentas y estados genéricos
 - No hay API keys, tokens ni credenciales hardcodeadas en el código fuente
 - Las cookies de sesión web se almacenan localmente via electron-store, nunca se transmiten a terceros
+- Dev server en puerto alto no estándar (61983) para evitar conflictos

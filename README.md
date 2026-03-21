@@ -5,7 +5,7 @@
 <h1 align="center">DogClaud</h1>
 
 <p align="center">
-  <strong>Nunca mas te quedes sin tokens a mitad de una sesion.</strong>
+  <strong>Monitorea tu consumo real de tokens de Claude Code. Sin sorpresas.</strong>
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@ Si usas **Claude Code** a diario, conoces esto: estas en medio de un refactor im
 
 ## La solucion
 
-**DogClaud** es una app de escritorio que vive en tu bandeja del sistema. Se conecta directamente con tu cuenta de **claude.ai**, monitorea tu consumo real de tokens en silencio, y te alerta con tiempo suficiente para que tomes decisiones inteligentes.
+**DogClaud** es una app de escritorio que vive en tu bandeja del sistema. Se conecta directamente con tu cuenta de **claude.ai**, monitorea tu consumo real de tokens en tiempo real, y te alerta con tiempo suficiente para que tomes decisiones inteligentes.
 
 **No estima. Sabe exactamente cuanto has usado y cuanto te queda.**
 
@@ -39,29 +39,28 @@ Si usas **Claude Code** a diario, conoces esto: estas en medio de un refactor im
 
 ## Funcionalidades
 
-### Datos reales, no estimaciones
+### Datos reales desde claude.ai
 - Sincronizacion directa con la API de claude.ai cada 30 segundos
-- Estimacion local desde logs JSONL como respaldo automatico
-- Los datos web siempre tienen prioridad
+- Requiere login con tu cuenta — los datos se muestran solo con sesion web activa
+- Sin sesion, la app muestra estado neutro (sin datos inventados)
 
 ### Gauges visuales en tiempo real
 - Sesion actual (ventana de 5 horas) con countdown al reset
 - Consumo semanal (ventana de 7 dias) con countdown al reset
-- Colores de semaforo que cambian en vivo
+- Colores de semaforo: verde → azul → amarillo → naranja → rojo
 
-### Alertas inteligentes
-- 6 umbrales configurados: 25%, 50%, 75%, 90%, 95%, 100%
+### Sistema de alertas inteligente
+- 6 umbrales: 25%, 50%, 75%, 90%, 95%, 100%
 - 3 pitidos con frecuencia unica por nivel (1kHz a 4kHz)
 - Notificaciones nativas del sistema operativo
-- Solo suena la alerta correcta — no todas las anteriores
-- No se disparan al abrir la app, solo despues de sincronizar
+- **Cero alertas al iniciar** — solo dispara cuando el uso SUBE y cruza un nuevo umbral
 - Silenciables individualmente
 
-### Icono vivo en la bandeja
-- Cambia de color segun tu consumo
-- Tooltip con porcentaje y tiempo al reset
-- Menu contextual con info completa
-- Click para abrir/cerrar
+### Icono vivo en la bandeja del sistema
+- Cambia de color segun tu consumo actual
+- Tooltip con porcentaje y tiempo restante al reset
+- Menu contextual con resumen completo
+- Sin sesion web muestra "Sin sesion web" (sin porcentajes falsos)
 
 ### Planificador semanal
 - Define bloques de uso por dia
@@ -69,46 +68,57 @@ Si usas **Claude Code** a diario, conoces esto: estas en medio de un refactor im
 
 ### 3 planes soportados
 
-| Plan | Sesion (5h) | Semanal |
-|------|-------------|---------|
+| Plan | Sesion (5h) | Semanal (7d) |
+|------|-------------|--------------|
 | **Pro** | ~7,000 tokens | ~100,000 tokens |
 | **Max 5** | ~35,000 tokens | ~500,000 tokens |
 | **Max 20** | ~140,000 tokens | ~2,000,000 tokens |
 
 ---
 
-## Instalacion
+## Instalacion rapida
 
-### Linux
+### Desde codigo fuente (todas las plataformas)
+
+```bash
+git clone https://github.com/thl-corporation-spa/dogclaud.git
+cd dogclaud
+npm install
+npm run electron:dev
+```
+
+### Binarios pre-compilados
+
+Descarga desde [**Releases**](https://github.com/thl-corporation-spa/dogclaud/releases):
+
+**Linux:**
 ```bash
 # AppImage (cualquier distro)
-chmod +x "DogClaud-1.0.0.AppImage"
-./"DogClaud-1.0.0.AppImage"
+chmod +x DogClaud-1.0.0.AppImage
+./DogClaud-1.0.0.AppImage
 
 # Debian / Ubuntu
 sudo dpkg -i dogclaud_1.0.0_amd64.deb
 ```
 
-### macOS
-Descarga el `.zip` desde [Releases](https://github.com/thl-corporation-spa/dogclaud/releases), descomprime y arrastra a Aplicaciones.
+**macOS:**
+Descarga el `.zip`, descomprime y arrastra a Aplicaciones.
 
-### Windows
+**Windows:**
 ```bash
 git clone https://github.com/thl-corporation-spa/dogclaud.git
 cd dogclaud && npm install && npm run dist:win
 ```
-
-> Descarga los binarios desde la pagina de [**Releases**](https://github.com/thl-corporation-spa/dogclaud/releases).
 
 ---
 
 ## Inicio rapido
 
 1. Abre la app — se minimiza a la bandeja del sistema
-2. Click en el icono para abrir la ventana
-3. Pestana **Uso** → presiona **Conectar**
+2. Click en el icono del perro para abrir la ventana
+3. En la pestana **Uso**, presiona **Conectar**
 4. Inicia sesion con tu cuenta de claude.ai
-5. Listo. Datos reales en segundos.
+5. Listo — datos reales en segundos
 
 ---
 
@@ -119,13 +129,40 @@ git clone https://github.com/thl-corporation-spa/dogclaud.git
 cd dogclaud
 npm install
 
-npm run electron:dev     # App completa
-npm run dev              # Solo frontend
-npx tsc --noEmit         # Type check
+npm run electron:dev     # App completa (build + Electron)
+npm run dev              # Dev server con hot reload (puerto 61983)
+npx tsc --noEmit         # Type check rapido
 
-npm run dist:linux       # AppImage + .deb
-npm run dist:mac         # .zip
-npm run dist:win         # .exe (requiere Windows)
+npm run dist:linux       # Genera AppImage + .deb
+npm run dist:mac         # Genera .zip para macOS
+npm run dist:win         # Genera .exe (requiere Windows nativo)
+```
+
+---
+
+## Arquitectura
+
+```
+src/
+├── main/index.ts          # Proceso principal Electron (~900 lineas)
+├── preload/index.ts       # Bridge seguro (contextBridge)
+├── renderer/
+│   ├── App.tsx            # Layout principal + logica de alertas
+│   ├── components/
+│   │   ├── gauges/        # SessionGauge, WeeklyGauge (SVG circular)
+│   │   ├── alerts/        # AlertManager (botones con estado)
+│   │   ├── settings/      # SettingsPanel
+│   │   ├── scheduler/     # WeeklyPlan
+│   │   ├── WebUsagePanel  # Datos de claude.ai API
+│   │   └── SetupScreen    # Wizard inicial
+│   ├── stores/            # Zustand (usage, alerts, settings)
+│   └── hooks/             # useClaudeUsage
+├── core/
+│   ├── parser/            # Lectura incremental de logs JSONL
+│   ├── calculator/        # Calculo de uso por ventana temporal
+│   ├── audio/             # Generador de tonos (Web Audio API)
+│   └── constants.ts       # Limites, umbrales, config de sonido
+└── shared/types.ts        # Tipos compartidos (IElectronAPI, etc.)
 ```
 
 ---
@@ -139,38 +176,39 @@ Las contribuciones son bienvenidas:
 3. Haz commit de tus cambios
 4. Abre un **Pull Request**
 
-> La rama `main` esta protegida. Todos los cambios pasan por revision.
+> La rama `main` esta protegida. Todos los cambios requieren revision via PR.
+
+Consulta [CONTRIBUTING.md](CONTRIBUTING.md) para mas detalles.
 
 ---
 
 ## Stack
 
-<table>
-  <tr>
-    <td><strong>Desktop</strong></td>
-    <td>Electron 28</td>
-  </tr>
-  <tr>
-    <td><strong>Frontend</strong></td>
-    <td>React 18 + TypeScript + Tailwind CSS</td>
-  </tr>
-  <tr>
-    <td><strong>Estado</strong></td>
-    <td>Zustand</td>
-  </tr>
-  <tr>
-    <td><strong>Audio</strong></td>
-    <td>Web Audio API</td>
-  </tr>
-  <tr>
-    <td><strong>Monitoreo</strong></td>
-    <td>Chokidar (file watching)</td>
-  </tr>
-  <tr>
-    <td><strong>Persistencia</strong></td>
-    <td>electron-store</td>
-  </tr>
-</table>
+| Capa | Tecnologia |
+|------|-----------|
+| **Desktop** | Electron 28 |
+| **Frontend** | React 18 + TypeScript + Tailwind CSS |
+| **Estado** | Zustand |
+| **Audio** | Web Audio API (oscillator + gain) |
+| **Monitoreo** | Chokidar (file watching) |
+| **Persistencia** | electron-store |
+| **Build** | Vite + vite-plugin-electron |
+| **Empaquetado** | electron-builder (AppImage, deb, zip, exe) |
+
+---
+
+## Seguridad
+
+- Sin API keys, tokens ni credenciales hardcodeadas
+- Las cookies de sesion web se almacenan localmente (electron-store), nunca se transmiten a terceros
+- Los logs del main process no exponen UUIDs, emails, nombres de org ni valores de cookies
+- Dev server en puerto no estandar (61983) para evitar conflictos
+
+---
+
+## Autor
+
+**Eliezer Lopez M.** — [admin@thlcorporation.com](mailto:admin@thlcorporation.com)
 
 ---
 
