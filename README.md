@@ -1,167 +1,156 @@
 # Claude Usage Tracker
 
-Monitoriza tu uso de tokens de Claude Code en tiempo real con alertas visuales y sonoras. Sincroniza directamente con tu cuenta de claude.ai para obtener datos reales de consumo.
+### Nunca mas te quedes sin tokens a mitad de una sesion.
 
-![Claude Usage Tracker](assets/screenshot.png)
+Claude Usage Tracker es una aplicacion de escritorio que monitorea tu consumo de tokens de **Claude Code** en tiempo real. Se conecta directamente con tu cuenta de **claude.ai** para darte datos reales y precisos, no estimaciones.
 
-## Caracteristicas
+Sabe exactamente cuanto has usado, cuanto te queda y te avisa antes de que sea demasiado tarde.
 
-### Monitoreo en Tiempo Real
-- Indicadores de uso para sesion actual (5 horas) y semanal (7 dias)
-- Porcentaje de uso con gauges visuales circulares (SVG con gradientes y glow)
-- Countdown hasta el proximo reset
-- Fuente de datos dual: estimacion desde logs JSONL locales o datos reales de claude.ai API
+---
 
-### Sincronizacion Web con claude.ai
-- Inicio de sesion directo con tu cuenta de claude.ai
-- Datos de uso reales via API (`/api/organizations/{id}/usage`)
-- Los datos web tienen precedencia sobre estimaciones locales
-- Persistencia de sesion con cookies (sobrevive reinicios)
-- Sincronizacion automatica cada 30 segundos
-- Deteccion automatica de organizacion y plan
+## Por que existe esto
 
-### Sistema de Alertas Inteligente
-- Alertas visuales y sonoras en umbrales: 25%, 50%, 75%, 90%, 95% y 100%
-- Frecuencias de sonido especificas por umbral (1kHz a 4kHz)
-- 3 pitidos por alerta con tonos sinusoidales (Web Audio API)
-- **Las alertas NO se disparan al iniciar la aplicacion** — solo se activan despues de la sincronizacion con la cuenta
-- Al sincronizar, solo se dispara la alerta correspondiente al porcentaje actual (no todas las anteriores)
-- Posibilidad de silenciar alertas individualmente
+Si usas Claude Code a diario, conoces el problema: estas en medio de un refactor importante, llevas horas de contexto acumulado, y de repente... **limite alcanzado**. Sin aviso. Sin tiempo para guardar tu progreso mental.
+
+Claude Usage Tracker resuelve esto. Vive en tu bandeja del sistema, vigila tu consumo en silencio, y te alerta con tiempo suficiente para que tomes decisiones inteligentes sobre como usar tus tokens restantes.
+
+---
+
+## Que hace
+
+**Monitoreo dual de datos**
+- Datos reales desde la API de claude.ai (sincronizacion cada 30 segundos)
+- Estimacion local desde logs JSONL como respaldo
+- Los datos web siempre tienen prioridad sobre las estimaciones
+
+**Gauges visuales en tiempo real**
+- Sesion actual (ventana de 5 horas) con countdown al reset
+- Consumo semanal (ventana de 7 dias) con countdown al reset
+- Colores de semaforo que cambian segun tu nivel de uso
+
+**Sistema de alertas inteligente**
+- 6 umbrales: 25%, 50%, 75%, 90%, 95%, 100%
+- Sonido con 3 pitidos a frecuencias distintas por umbral
 - Notificaciones nativas del sistema operativo
+- Las alertas NO se disparan al abrir la app — solo despues de sincronizar
+- Solo suena la alerta del nivel actual, no todas las anteriores
+- Cada alerta se puede silenciar individualmente
 
-### Icono Dinamico en Bandeja del Sistema
-- Icono con emoji de perro que cambia de color segun el nivel de uso
-- Semaforo de colores: verde -> azul -> amarillo -> naranja -> rojo
-- Tooltip con porcentaje y tiempo de reset
-- Menu contextual con info de sesion, plan y acciones rapidas
-- Click izquierdo para mostrar/ocultar ventana
+**Icono vivo en la bandeja del sistema**
+- Cambia de color segun tu consumo (verde -> azul -> amarillo -> naranja -> rojo)
+- Tooltip con porcentaje actual y tiempo hasta el reset
+- Click izquierdo: abrir/cerrar ventana
+- Click derecho: menu con toda la info rapida
 
-### Planificador Semanal
-- Crear intervalos de uso personalizados
-- Definir horarios de trabajo por dia
-- Intervalos editables (predeterminado: 5 horas)
+**Planificador semanal**
+- Define bloques de uso por dia
+- Planifica tu semana para no desperdiciar tokens
 
-### Configuracion
-- Seleccion de plan (Pro, Max 5, Max 20)
-- Control de volumen de alertas (0% a 100%)
-- Inicio con el sistema operativo
-- Inicio minimizado en bandeja
-- Toast de confirmacion al guardar
+**3 planes soportados**
+
+| Plan   | Sesion (5h)    | Semanal         |
+|--------|----------------|-----------------|
+| Pro    | ~7,000 tokens  | ~100,000 tokens |
+| Max 5  | ~35,000 tokens | ~500,000 tokens |
+| Max 20 | ~140,000 tokens| ~2,000,000 tokens|
+
+---
 
 ## Instalacion
 
 ### Linux
+
 ```bash
-# Usando AppImage
+# AppImage (cualquier distro)
 chmod +x "Claude Usage Tracker-1.0.0.AppImage"
 ./"Claude Usage Tracker-1.0.0.AppImage"
 
-# Usando .deb (Debian/Ubuntu)
+# Debian / Ubuntu
 sudo dpkg -i claude-usage-tracker_1.0.0_amd64.deb
 ```
 
 ### macOS
-1. Descarga `Claude Usage Tracker-1.0.0-mac.zip` desde `release/`
-2. Descomprime y arrastra la aplicacion a tu carpeta de Aplicaciones
+
+Descarga el `.zip` desde [Releases](https://github.com/thl-corporation-spa/claude-usage-tracker/releases), descomprime y arrastra a Aplicaciones.
 
 ### Windows
-1. Compila desde Windows con `npm run dist:win` (requiere entorno Windows nativo)
-2. Ejecuta el instalador `.exe` generado en `release/`
+
+Compila desde Windows:
+```bash
+git clone https://github.com/thl-corporation-spa/claude-usage-tracker.git
+cd claude-usage-tracker
+npm install
+npm run dist:win
+```
+
+---
+
+## Primeros pasos
+
+1. Abre la app — se minimiza a la bandeja del sistema
+2. Click en el icono de la bandeja para abrir la ventana
+3. En la pestana **Uso**, presiona **Conectar** para vincular tu cuenta de claude.ai
+4. Inicia sesion en la ventana que se abre
+5. Listo. Los datos reales empiezan a llegar en segundos
+
+A partir de ahi, la app monitorea en silencio y te alerta cuando cruzas cada umbral.
+
+---
+
+## Stack
+
+- **Electron 28** + **React 18** + **TypeScript**
+- **Zustand** para estado
+- **Tailwind CSS** con tema oscuro glassmorphism
+- **Web Audio API** para alertas sonoras
+- **Chokidar** para monitoreo de archivos
+- **electron-store** para persistencia de sesion
+
+---
 
 ## Desarrollo
 
-### Requisitos
-- Node.js 18+
-- npm
-
-### Setup
 ```bash
-# Clonar el repositorio
 git clone https://github.com/thl-corporation-spa/claude-usage-tracker.git
 cd claude-usage-tracker
-
-# Instalar dependencias
 npm install
 
-# Ejecutar en desarrollo (Electron completo)
+# Lanzar app completa
 npm run electron:dev
 
-# Solo renderer (Vite dev server, sin shell Electron)
+# Solo frontend (Vite dev server)
 npm run dev
 
-# Type check rapido
+# Type check
 npx tsc --noEmit
+
+# Compilar para distribucion
+npm run dist:linux    # AppImage + .deb
+npm run dist:mac      # .zip
+npm run dist:win      # .exe (requiere Windows)
 ```
 
-### Compilar para distribucion
-```bash
-# Linux (AppImage + .deb)
-npm run dist:linux
+---
 
-# macOS (zip)
-npm run dist:mac
+## Contribuir
 
-# Windows (nsis installer - requiere Windows o Wine funcional)
-npm run dist:win
+Las contribuciones son bienvenidas. El flujo es:
 
-# Todas las plataformas
-npm run dist
-```
+1. Haz **fork** del repositorio
+2. Crea una rama con tu mejora (`git checkout -b mi-mejora`)
+3. Haz commit de tus cambios
+4. Abre un **Pull Request** describiendo que hiciste y por que
 
-> **Nota:** Si `dist/` o `release/` tienen archivos de builds previos con root, limpiar con `sudo rm -rf dist release` antes de rebuilds.
+La rama `main` esta protegida. Todos los cambios pasan por revision antes de ser integrados.
 
-## Uso
-
-1. **Primera ejecucion**: La aplicacion se minimiza a la bandeja del sistema
-2. **Conectar cuenta**: En la pestana "Uso", conecta tu cuenta de claude.ai para datos reales
-3. **Icono en bandeja**: Muestra el porcentaje de uso con colores de semaforo
-4. **Click izquierdo**: Abre/oculta la ventana principal
-5. **Click derecho**: Menu contextual con info y opciones
-6. **Alertas**: Suenan automaticamente al cruzar cada umbral (solo despues de sincronizar)
-
-## Planes de Claude Code
-
-| Plan   | Limite Sesion (5h)  | Limite Semanal      |
-|--------|---------------------|---------------------|
-| Pro    | ~7,000 tokens       | ~100,000 tokens     |
-| Max 5  | ~35,000 tokens      | ~500,000 tokens     |
-| Max 20 | ~140,000 tokens     | ~2,000,000 tokens   |
-
-## Arquitectura
-
-### Modelo de tres procesos Electron
-
-- **Main process** (`src/main/index.ts`) — Ventana, tray, file watching (chokidar), IPC handlers, sesion web con cookies, notificaciones nativas, calculo de uso
-- **Preload** (`src/preload/index.ts`) — Expone `window.electronAPI` via contextBridge
-- **Renderer** (`src/renderer/`) — React 18 + Tailwind CSS + Zustand stores
-
-### Flujo de datos
-
-```
-Archivos JSONL (~/.claude/projects/)
-  -> Chokidar detecta cambios
-  -> Parser incremental
-  -> Calculo de uso
-  -> IPC a renderer
-  -> React actualiza gauges + alertas
-
-API Web (claude.ai) cada 30s
-  -> /api/bootstrap (auth + org)
-  -> /api/organizations/{id}/usage (datos reales)
-  -> Precedencia sobre datos JSONL
-  -> Actualiza tray + gauges + alertas
-```
-
-## Stack Tecnologico
-
-- **Frontend:** React 18, TypeScript, Tailwind CSS
-- **Desktop:** Electron 28 con Vite
-- **State:** Zustand
-- **File Watching:** Chokidar
-- **Persistencia:** electron-store (settings + cookies web)
-- **Audio:** Web Audio API (oscillator + gain)
-- **Build:** Vite + vite-plugin-electron + electron-builder
+---
 
 ## Licencia
 
-MIT License - ver archivo [LICENSE](LICENSE) para mas detalles.
+MIT License — usa, modifica y distribuye libremente.
+
+---
+
+<p align="center">
+  <strong>con amor THL Corporation</strong>
+</p>
