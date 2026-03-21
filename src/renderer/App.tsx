@@ -90,10 +90,13 @@ function App() {
 
   const { alerts, triggerAlert, silenceAlert, setSoundPlaying } = useAlertStore();
   const alertedRef = useRef<Set<number>>(new Set());
+  const hasSyncedRef = useRef(false);
 
   // Check alerts and play sound when percentage crosses thresholds
+  // Alerts only fire AFTER initial sync with account completes
   const checkAlerts = useCallback((percentage: number) => {
     if (!alertsEnabled) return;
+    if (!hasSyncedRef.current) return;
 
     for (const threshold of ALERT_THRESHOLDS) {
       if (
@@ -106,7 +109,8 @@ function App() {
           triggerAlert(threshold.threshold);
           setSoundPlaying(true);
           playTone(threshold.frequency, soundVolume);
-          setTimeout(() => setSoundPlaying(false), 1000);
+          // Total sound duration: REPEATS * DURATION + (REPEATS-1) * PAUSE + buffer
+          setTimeout(() => setSoundPlaying(false), 1400);
           break;
         }
       }
@@ -156,6 +160,7 @@ function App() {
         setWebLimits(r.limits);
       }
     });
+
   }, [setupStatus, loadSettings, setUsage]);
 
   const handleWebConnect = async () => {
@@ -282,6 +287,22 @@ function App() {
       window.electronAPI.updateTrayTooltip(effectiveSessionPct, effectiveWeeklyPct);
     }
   }, [effectiveSessionPct, effectiveWeeklyPct, sessionCountdown]);
+
+  // When first sync completes, fire ONLY the highest current threshold
+  // Pre-populate all lower thresholds so they don't fire retroactively
+  // Works for both web data and JSONL-only (isConnected) scenarios
+  useEffect(() => {
+    if (!hasSyncedRef.current && (hasWebData || isConnected)) {
+      hasSyncedRef.current = true;
+      // Find all exceeded thresholds and mark all EXCEPT the highest one as already alerted
+      const exceededThresholds = ALERT_THRESHOLDS.filter(t => effectiveSessionPct >= t.threshold);
+      for (let i = 0; i < exceededThresholds.length - 1; i++) {
+        alertedRef.current.add(exceededThresholds[i].threshold);
+      }
+      // The highest exceeded threshold is NOT added to alertedRef,
+      // so checkAlerts will fire it as the single current alert
+    }
+  }, [hasWebData, isConnected, effectiveSessionPct]);
 
   // Check alerts when session percentage changes
   useEffect(() => {

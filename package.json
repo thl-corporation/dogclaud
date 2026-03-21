@@ -63,13 +63,15 @@
       "target": ["AppImage", "deb"],
       "category": "Utility",
       "maintainer": "eliezer@example.com",
-      "icon": "assets/dog-512.png"
+      "icon": "assets/dog-emoji-512.png"
     },
     "win": {
-      "target": ["nsis"]
+      "target": ["nsis"],
+      "icon": "assets/dog-emoji-512.png"
     },
     "mac": {
-      "target": ["dmg"]
+      "target": ["zip"],
+      "icon": "assets/dog-emoji-512.png"
     },
     "nsis": {
       "oneClick": false,

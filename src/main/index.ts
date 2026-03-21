@@ -487,19 +487,20 @@ async function updateUsage(): Promise<void> {
     const sessionPct = usage.sessionLimit > 0 ? (usage.sessionTokens / usage.sessionLimit) * 100 : 0;
     const weeklyPct = usage.weeklyLimit > 0 ? (usage.weeklyTokens / usage.weeklyLimit) * 100 : 0;
     
-    // Update tray icon ONLY if not connected to web API (web data takes precedence)
-    if (tray && !isWebConnected) {
-      const color = getColorForPercentage(sessionPct);
-      const icon = createTrayIcon(sessionPct, color);
-      tray.setImage(icon);
-      const resetTimeStr = resetTimes.sessionResetTime 
-        ? formatCountdown(new Date(resetTimes.sessionResetTime))
-        : '--:--';
-      tray.setToolTip(`Claude Usage Tracker\nSesión: ${Math.round(sessionPct)}% | Reset: ${resetTimeStr}`);
+    // Update tray icon and menu ONLY if not connected to web API (web data takes precedence)
+    if (!isWebConnected) {
+      if (tray) {
+        const color = getColorForPercentage(sessionPct);
+        const icon = createTrayIcon(sessionPct, color);
+        tray.setImage(icon);
+        const resetTimeStr = resetTimes.sessionResetTime
+          ? formatCountdown(new Date(resetTimes.sessionResetTime))
+          : '--:--';
+        tray.setToolTip(`Claude Usage Tracker\nSesión: ${Math.round(sessionPct)}% | Reset: ${resetTimeStr}`);
+      }
+      updateTrayMenu(sessionPct, weeklyPct);
     }
-    
-    updateTrayMenu(sessionPct, weeklyPct);
-    
+
     // Send to renderer
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('usage-update', {
@@ -508,9 +509,12 @@ async function updateUsage(): Promise<void> {
         weeklyResetTime: resetTimes.weeklyResetTime
       });
     }
-    
-    // Check alerts
-    checkAlerts(sessionPct, settings.alertsEnabled as boolean);
+
+    // Check alerts ONLY from JSONL when web is NOT connected
+    // When web is connected, alerts are handled by pushWebUsage flow
+    if (!isWebConnected) {
+      checkAlerts(sessionPct, settings.alertsEnabled as boolean);
+    }
     
   } catch (error) {
     console.error('Error updating usage:', error);
@@ -528,9 +532,11 @@ function getColorForPercentage(percentage: number): string {
 }
 
 const alertedThresholds = new Set<number>();
+let hasInitialSyncCompleted = false;
 
 function checkAlerts(percentage: number, alertsEnabled: boolean): void {
   if (!alertsEnabled) return;
+  if (!hasInitialSyncCompleted) return;
   
   const thresholds = [25, 50, 75, 90, 95, 100];
   
@@ -808,19 +814,71 @@ app.whenReady().then(async () => {
   // Periodic update every 5 seconds (CLI local data)
   setInterval(updateUsage, 5000);
 
+  // Fallback: if web sync hasn't completed after 15s, enable alerts from JSONL
+  // Pre-populate exceeded thresholds so only the highest one fires
+  setTimeout(async () => {
+    if (!hasInitialSyncCompleted) {
+      hasInitialSyncCompleted = true;
+      try {
+        const settings = settingsStore.store as unknown as AppSettings;
+        const paths = getClaudeLogPaths();
+        const allEvts: import('../shared/types').TokenEvent[] = [];
+        for (const fp of paths) {
+          const events = await parseTokenEvents(fp, 0);
+          allEvts.push(...events);
+        }
+        const usage = calculateUsage(allEvts, settings.plan);
+        const pct = usage.sessionLimit > 0 ? (usage.sessionTokens / usage.sessionLimit) * 100 : 0;
+        const thresholds = [25, 50, 75, 90, 95, 100];
+        const exceeded = thresholds.filter(t => pct >= t);
+        for (let i = 0; i < exceeded.length - 1; i++) {
+          alertedThresholds.add(exceeded[i]);
+        }
+      } catch { /* ignore */ }
+    }
+  }, 15000);
+
   // Periodic web usage update every 30 seconds
   const pushWebUsage = async () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
 
     const result = await fetchAllWebUsage();
     isWebConnected = result.connected;
-    
+
+    // After first successful web sync, enable alerts but only fire the highest exceeded threshold
+    // Pre-populate all lower thresholds so they don't fire retroactively
+    if (result.connected && !hasInitialSyncCompleted) {
+      hasInitialSyncCompleted = true;
+      const usageForSync = result.usage as Record<string, unknown> | null;
+      if (usageForSync) {
+        const fhSync = usageForSync.usage as Record<string, unknown> | undefined;
+        if (fhSync) {
+          const fhData = fhSync.five_hour as { utilization?: number } | undefined;
+          if (fhData && typeof fhData.utilization === 'number') {
+            const settings = settingsStore.store as unknown as AppSettings;
+            const plan = (settings.plan || 'pro') as PlanType;
+            const limit = PLAN_LIMITS[plan].sessionTokens;
+            const pct = fhData.utilization > 100
+              ? (fhData.utilization / limit) * 100
+              : fhData.utilization;
+            const thresholds = [25, 50, 75, 90, 95, 100];
+            // Find all exceeded thresholds, mark all EXCEPT the highest as already alerted
+            const exceeded = thresholds.filter(t => pct >= t);
+            for (let i = 0; i < exceeded.length - 1; i++) {
+              alertedThresholds.add(exceeded[i]);
+            }
+            // The highest exceeded threshold is NOT added, so checkAlerts will fire only that one
+          }
+        }
+      }
+    }
+
     if (result.connected) {
       mainWindow.webContents.send('web-usage-update', result);
       // Re-save cookies periodically to keep them fresh
       await saveCookiesToStore();
 
-      // Update tray icon from web API data if available
+      // Update tray icon from web API data
       const usageData = result.usage as Record<string, unknown> | null;
       if (usageData) {
         const fiveHour = usageData.usage as Record<string, unknown> | undefined;
@@ -830,15 +888,15 @@ app.whenReady().then(async () => {
             const settings = settingsStore.store as unknown as AppSettings;
             const plan = (settings.plan || 'pro') as PlanType;
             const limit = PLAN_LIMITS[plan].sessionTokens;
-            const pct = fh.utilization > 100 
-              ? (fh.utilization / limit) * 100 
+            const pct = fh.utilization > 100
+              ? (fh.utilization / limit) * 100
               : fh.utilization;
             const color = getColorForPercentage(pct);
             const icon = createTrayIcon(pct, color);
             if (tray) {
               tray.setImage(icon);
-              const resetTime = fh.resets_at 
-                ? formatCountdown(new Date(fh.resets_at)) 
+              const resetTime = fh.resets_at
+                ? formatCountdown(new Date(fh.resets_at))
                 : '--:--';
               tray.setToolTip(`Claude Usage Tracker\nSesión: ${Math.round(pct)}% | Reset: ${resetTime}`);
             }
@@ -847,6 +905,9 @@ app.whenReady().then(async () => {
               ? (sd.utilization / PLAN_LIMITS[plan].weeklyTokens) * 100
               : (sd?.utilization ?? 0);
             updateTrayMenu(pct, weeklyPct);
+
+            // Check alerts using web percentage (single source of truth when connected)
+            checkAlerts(pct, settings.alertsEnabled as boolean);
           }
         }
       }
