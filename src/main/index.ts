@@ -56,7 +56,7 @@ async function saveCookiesToStore(): Promise<void> {
   }));
 
   cookieStore.set('claudeCookies', toSave);
-  console.log(`[Cookies] Saved ${toSave.length} cookies to store`);
+  console.log(`[Cookies] Saved ${toSave.length} cookies`);
 }
 
 /** Restore cookies from electron-store into the web session */
@@ -88,14 +88,14 @@ async function restoreCookiesFromStore(): Promise<void> {
       console.error(`[Cookies] Failed to restore cookie ${cookie.name}:`, err);
     }
   }
-  console.log(`[Cookies] Restored ${restored}/${saved.length} cookies from store`);
+  console.log(`[Cookies] Restored ${restored}/${saved.length} cookies`);
 }
 
 /** Clear saved cookies from store */
 function clearCookieStore(): void {
   if (cookieStore) {
     cookieStore.delete('claudeCookies');
-    console.log('[Cookies] Cleared saved cookies from store');
+    console.log('[Cookies] Cleared');
   }
 }
 
@@ -188,25 +188,25 @@ async function getOrgId(): Promise<string | null> {
     }
   }
 
-  console.log('[WebAPI] Found', allOrgs.length, 'organizations:', allOrgs.map(o => `${o.name} (${o.billingType}, ${o.uuid})`));
+  console.log('[WebAPI] Found', allOrgs.length, 'organizations');
 
   // Also check lastActiveOrg cookie
   const webSess = getWebSession();
   const cookies = await webSess.cookies.get({ url: 'https://claude.ai', name: 'lastActiveOrg' });
   const lastActiveOrg = cookies.length > 0 ? cookies[0].value : null;
-  console.log('[WebAPI] lastActiveOrg cookie:', lastActiveOrg);
+  console.log('[WebAPI] lastActiveOrg:', lastActiveOrg ? 'found' : 'not found');
 
   // Priority: use lastActiveOrg if it's in our list
   if (lastActiveOrg) {
     const found = allOrgs.find(o => o.uuid === lastActiveOrg);
     if (found) {
       cachedOrgId = found.uuid;
-      console.log('[WebAPI] Using lastActiveOrg:', cachedOrgId, `(${found.name}, ${found.billingType})`);
+      console.log('[WebAPI] Using lastActiveOrg');
       return cachedOrgId;
     }
     // Even if not in our membership list, try it — it might be a personal org
     cachedOrgId = lastActiveOrg;
-    console.log('[WebAPI] Using lastActiveOrg (not in memberships):', cachedOrgId);
+    console.log('[WebAPI] Using lastActiveOrg (external)');
     return cachedOrgId;
   }
 
@@ -214,14 +214,14 @@ async function getOrgId(): Promise<string | null> {
   const nonApiOrg = allOrgs.find(o => !o.capabilities.includes('api') || o.billingType !== 'prepaid');
   if (nonApiOrg) {
     cachedOrgId = nonApiOrg.uuid;
-    console.log('[WebAPI] Using non-API org:', cachedOrgId, `(${nonApiOrg.name})`);
+    console.log('[WebAPI] Using non-API org');
     return cachedOrgId;
   }
 
   // Last resort: first org
   if (allOrgs.length > 0) {
     cachedOrgId = allOrgs[0].uuid;
-    console.log('[WebAPI] Using first org:', cachedOrgId);
+    console.log('[WebAPI] Using first org');
     return cachedOrgId;
   }
 
@@ -537,49 +537,53 @@ let hasInitialSyncCompleted = false;
 function checkAlerts(percentage: number, alertsEnabled: boolean): void {
   if (!alertsEnabled) return;
   if (!hasInitialSyncCompleted) return;
-  
-  const thresholds = [25, 50, 75, 90, 95, 100];
-  
+
+  const messages: Record<number, string> = {
+    25: 'Uso al 25% - Comenzando',
+    50: 'Uso al 50% - Mitad de camino',
+    75: 'Uso al 75% - Precaución',
+    90: 'Uso al 90% - ¡Cuidado!',
+    95: '¡CRÍTICO! 95% usado',
+    100: '¡LÍMITE ALCANZADO!'
+  };
+
+  const colorMap: Record<string, string> = {
+    '#22C55E': 'dog-emoji-green.png',
+    '#3B82F6': 'dog-emoji-blue.png',
+    '#EAB308': 'dog-emoji-yellow.png',
+    '#F97316': 'dog-emoji-orange.png',
+    '#EF4444': 'dog-emoji-red.png',
+    '#DC2626': 'dog-emoji-red.png',
+    '#B91C1C': 'dog-emoji-red.png',
+    '#FBBF24': 'dog-emoji-yellow.png',
+  };
+
+  // Find the highest threshold that's been crossed and not yet alerted
+  const thresholds = [100, 95, 90, 75, 50, 25]; // highest first
+
   for (const threshold of thresholds) {
     if (percentage >= threshold && !alertedThresholds.has(threshold)) {
-      alertedThresholds.add(threshold);
-      
-      // Show notification with colored icon
-      const messages: Record<number, string> = {
-        25: 'Uso al 25% - Comenzando',
-        50: 'Uso al 50% - Mitad de camino',
-        75: 'Uso al 75% - Precaución',
-        90: 'Uso al 90% - ¡Cuidado!',
-        95: '¡CRÍTICO! 95% usado',
-        100: '¡LÍMITE ALCANZADO!'
-      };
-      
-      const colorMap: Record<string, string> = {
-        '#22C55E': 'dog-emoji-green.png',
-        '#3B82F6': 'dog-emoji-blue.png',
-        '#EAB308': 'dog-emoji-yellow.png',
-        '#F97316': 'dog-emoji-orange.png',
-        '#EF4444': 'dog-emoji-red.png',
-        '#DC2626': 'dog-emoji-red.png',
-        '#B91C1C': 'dog-emoji-red.png',
-        '#FBBF24': 'dog-emoji-yellow.png',
-      };
+      // Mark this AND all lower thresholds as alerted (so they never fire)
+      for (const t of [25, 50, 75, 90, 95, 100]) {
+        if (t <= threshold) alertedThresholds.add(t);
+      }
+
       const alertColor = getColorForPercentage(threshold);
       const iconFile = colorMap[alertColor] || 'dog-emoji-green.png';
       const iconPath = path.join(__dirname, '../../assets', iconFile);
       const iconData = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : undefined;
-      
+
       new Notification({
         title: '🐕 Claude Usage Tracker',
         body: messages[threshold],
         urgency: threshold >= 95 ? 'critical' : 'normal',
         icon: iconData
       }).show();
-      
-      // Send to renderer
+
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('show-alert', { threshold, message: messages[threshold] });
       }
+      break; // Only fire ONE notification — the highest crossed threshold
     }
   }
 }

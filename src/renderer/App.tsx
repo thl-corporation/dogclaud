@@ -98,18 +98,25 @@ function App() {
     if (!alertsEnabled) return;
     if (!hasSyncedRef.current) return;
 
-    for (const threshold of ALERT_THRESHOLDS) {
+    // Find the highest threshold crossed that hasn't been alerted yet
+    const sortedDesc = [...ALERT_THRESHOLDS].sort((a, b) => b.threshold - a.threshold);
+
+    for (const threshold of sortedDesc) {
       if (
         percentage >= threshold.threshold &&
         !alertedRef.current.has(threshold.threshold)
       ) {
         const alert = alerts.find(a => a.threshold === threshold.threshold);
         if (alert && !alert.triggered && !alert.silenced) {
-          alertedRef.current.add(threshold.threshold);
+          // Mark this AND all lower thresholds as alerted
+          for (const t of ALERT_THRESHOLDS) {
+            if (t.threshold <= threshold.threshold) {
+              alertedRef.current.add(t.threshold);
+            }
+          }
           triggerAlert(threshold.threshold);
           setSoundPlaying(true);
           playTone(threshold.frequency, soundVolume);
-          // Total sound duration: REPEATS * DURATION + (REPEATS-1) * PAUSE + buffer
           setTimeout(() => setSoundPlaying(false), 1400);
           break;
         }
@@ -288,21 +295,34 @@ function App() {
     }
   }, [effectiveSessionPct, effectiveWeeklyPct, sessionCountdown]);
 
-  // When first sync completes, fire ONLY the highest current threshold
+  // When first web sync completes, fire ONLY the highest current threshold
   // Pre-populate all lower thresholds so they don't fire retroactively
-  // Works for both web data and JSONL-only (isConnected) scenarios
   useEffect(() => {
-    if (!hasSyncedRef.current && (hasWebData || isConnected)) {
+    if (!hasSyncedRef.current && hasWebData) {
       hasSyncedRef.current = true;
-      // Find all exceeded thresholds and mark all EXCEPT the highest one as already alerted
+      // Find all exceeded thresholds, mark ALL as alerted EXCEPT the highest
       const exceededThresholds = ALERT_THRESHOLDS.filter(t => effectiveSessionPct >= t.threshold);
       for (let i = 0; i < exceededThresholds.length - 1; i++) {
         alertedRef.current.add(exceededThresholds[i].threshold);
       }
-      // The highest exceeded threshold is NOT added to alertedRef,
-      // so checkAlerts will fire it as the single current alert
     }
-  }, [hasWebData, isConnected, effectiveSessionPct]);
+  }, [hasWebData, effectiveSessionPct]);
+
+  // Fallback: if no web data after 20s, enable alerts from JSONL
+  // Pre-populate all exceeded thresholds except the highest
+  useEffect(() => {
+    if (hasSyncedRef.current) return;
+    const timeout = setTimeout(() => {
+      if (!hasSyncedRef.current && isConnected) {
+        hasSyncedRef.current = true;
+        const exceededThresholds = ALERT_THRESHOLDS.filter(t => effectiveSessionPct >= t.threshold);
+        for (let i = 0; i < exceededThresholds.length - 1; i++) {
+          alertedRef.current.add(exceededThresholds[i].threshold);
+        }
+      }
+    }, 20000);
+    return () => clearTimeout(timeout);
+  }, [isConnected, effectiveSessionPct]);
 
   // Check alerts when session percentage changes
   useEffect(() => {
@@ -643,6 +663,18 @@ function App() {
           />
         )}
       </main>
+
+      <footer style={{
+        padding: '10px 0',
+        textAlign: 'center',
+        fontSize: '11px',
+        color: 'rgba(255,255,255,0.2)',
+        letterSpacing: '0.5px',
+        borderTop: '1px solid rgba(255,255,255,0.05)',
+        flexShrink: 0,
+      }}>
+        con amor THL Corporation
+      </footer>
     </div>
   );
 }
