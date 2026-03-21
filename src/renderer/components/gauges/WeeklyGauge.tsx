@@ -90,9 +90,8 @@ export const WeeklyGauge: React.FC<WeeklyGaugeProps> = ({
         }}>
           <span style={{
             fontSize: '32px', fontWeight: 800, lineHeight: 1,
-            background: `linear-gradient(135deg, ${color}, ${color}bb)`,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            color: color,
+            textShadow: `0 0 16px ${color}44`,
           }}>
             {Math.round(percentage)}%
           </span>

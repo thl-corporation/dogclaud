@@ -110,9 +110,8 @@ export const SessionGauge: React.FC<SessionGaugeProps> = ({
         }}>
           <span style={{
             fontSize: '48px', fontWeight: 800, lineHeight: 1,
-            background: `linear-gradient(135deg, ${color}, ${color}cc)`,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
+            color: color,
+            textShadow: `0 0 20px ${color}44`,
           }}>
             {Math.round(percentage)}%
           </span>
