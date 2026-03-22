@@ -1,8 +1,8 @@
 # Contributing to DogClaud / Contribuir a DogClaud
 
-Thank you for your interest in contributing! / Gracias por tu interes en contribuir.
+Thank you for your interest in contributing! / ¡Gracias por tu interés en contribuir!
 
-## How to contribute / Como contribuir
+## How to contribute / Cómo contribuir
 
 1. **Fork** the repository
 2. Clone your fork: `git clone https://github.com/YOUR-USER/dogclaud.git`
@@ -49,5 +49,5 @@ Use the [issue templates](https://github.com/thl-corporation/dogclaud/issues/new
 
 ---
 
-**Eliezer Lopez M.** — [admin@thlcorporation.com](mailto:admin@thlcorporation.com)
+**Eliezer López M.** — [admin@thlcorporation.com](mailto:admin@thlcorporation.com)
 [THL Corporation](https://github.com/thl-corporation) — Chile

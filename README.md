@@ -5,8 +5,8 @@
 <h1 align="center">DogClaud</h1>
 
 <p align="center">
-  <strong>Monitor your Claude Code token usage in real time. No surprises.</strong><br>
-  <sub>Monitorea tu consumo real de tokens de Claude Code. Sin sorpresas.</sub>
+  <strong>Your loyal watchdog for Claude Code tokens.</strong><br>
+  <sub>Tu guardián fiel para los tokens de Claude Code.</sub>
 </p>
 
 <p align="center">
@@ -28,57 +28,61 @@
 
 ## The Problem / El Problema
 
-If you use **Claude Code** daily, you know this: you're in the middle of an important refactor, hours of accumulated context, and suddenly — **limit reached**. No warning. No time to save your mental progress.
+If you use **Claude Code** daily, you know the feeling: you're deep into a critical refactor, hours of accumulated context, and suddenly — **limit reached**. No warning. No time to save your progress. Your entire flow, gone.
 
-Si usas **Claude Code** a diario, conoces esto: estas en medio de un refactor importante, llevas horas de contexto acumulado, y de repente — **limite alcanzado**. Sin aviso.
+Si usas **Claude Code** a diario, conoces la sensación: estás en medio de un refactor crítico, llevas horas de contexto acumulado, y de repente — **límite alcanzado**. Sin aviso. Sin tiempo para guardar tu progreso. Todo tu flujo, perdido.
 
-## The Solution / La Solucion
+## The Solution / La Solución
 
-**DogClaud** is a desktop app that lives in your system tray. It connects directly to your **claude.ai** account, monitors your real token usage in real time, and alerts you with enough time to make smart decisions.
+**DogClaud** is a desktop app that lives in your system tray like a loyal watchdog. It connects directly to your **claude.ai** account, monitors your real token usage in real time, and barks at you before it's too late.
 
-**It doesn't estimate. It knows exactly how much you've used and how much you have left.**
+**DogClaud** es una app de escritorio que vive en tu bandeja del sistema como un guardián fiel. Se conecta directamente a tu cuenta de **claude.ai**, monitorea tu consumo real de tokens en tiempo real, y te ladra antes de que sea demasiado tarde.
+
+> **It doesn't estimate. It knows exactly how much you've used and how much you have left.**
+>
+> **No estima. Sabe exactamente cuánto has usado y cuánto te queda.**
 
 ---
 
-## Features / Funcionalidades
+## Features / Características
 
 ### Real data from claude.ai / Datos reales desde claude.ai
 - Direct sync with the claude.ai API every 30 seconds
 - Login with your account — data shown only with an active web session
 - Without a session, the app shows a neutral state (no fake data)
 
-### Real-time visual gauges / Gauges visuales en tiempo real
+### Real-time visual gauges / Indicadores visuales en tiempo real
 - Current session (5-hour window) with countdown to reset
 - Weekly consumption (7-day window) with countdown to reset
 - Traffic light colors: green → blue → yellow → orange → red
 
 ### Smart alert system / Sistema de alertas inteligente
 - 6 thresholds: 25%, 50%, 75%, 90%, 95%, 100%
-- 3 beeps with unique frequency per level (1kHz to 4kHz)
+- 3 beeps with unique frequency per level (1 kHz to 4 kHz)
 - Native OS notifications
-- **Zero alerts on startup** — only triggers when usage RISES and crosses a new threshold
-- Individually silenceable
+- **Zero alerts on startup** — only triggers when usage rises and crosses a new threshold
+- Individually silenceable per threshold
 
-### Live system tray icon / Icono vivo en la bandeja del sistema
-- Changes color based on your current consumption
+### Live system tray icon / Ícono dinámico en la bandeja del sistema
+- Changes color based on your current consumption level
 - Tooltip with percentage and time remaining until reset
-- Context menu with full summary
+- Context menu with full usage summary
 
 ### Weekly planner / Planificador semanal
 - Define usage blocks per day
-- Organize your week to maximize tokens
+- Organize your week to maximize your tokens strategically
 
 ### 3 supported plans / 3 planes soportados
 
-| Plan | Session (5h) | Weekly (7d) |
-|------|-------------|--------------|
+| Plan | Session (5 h) | Weekly (7 d) |
+|------|---------------|--------------|
 | **Pro** | ~7,000 tokens | ~100,000 tokens |
 | **Max 5** | ~35,000 tokens | ~500,000 tokens |
 | **Max 20** | ~140,000 tokens | ~2,000,000 tokens |
 
 ---
 
-## Quick Install / Instalacion rapida
+## Quick Install / Instalación rápida
 
 ### Pre-built binaries / Binarios pre-compilados
 
@@ -100,7 +104,7 @@ Download the `.zip`, extract and drag to Applications.
 **Windows:**
 Run the `.exe` installer from Releases.
 
-### From source / Desde codigo fuente
+### From source / Desde código fuente
 
 ```bash
 git clone https://github.com/thl-corporation/dogclaud.git
@@ -111,7 +115,7 @@ npm run electron:dev
 
 ---
 
-## Quick Start / Inicio rapido
+## Quick Start / Inicio rápido
 
 1. Open the app — it minimizes to the system tray
 2. Click the dog icon to open the window
@@ -168,7 +172,7 @@ src/
 
 ## Contributing / Contribuir
 
-Contributions are welcome! / Las contribuciones son bienvenidas!
+Contributions are welcome! / ¡Las contribuciones son bienvenidas!
 
 1. **Fork** this repository
 2. Create a branch from `develop`: `git checkout -b feature/my-improvement develop`
@@ -207,7 +211,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
 
 ## Author / Autor
 
-**Eliezer Lopez M.** — [admin@thlcorporation.com](mailto:admin@thlcorporation.com)
+**Eliezer López M.** — [admin@thlcorporation.com](mailto:admin@thlcorporation.com)
 
 Developed by [**THL Corporation**](https://github.com/thl-corporation) from Chile.
 
