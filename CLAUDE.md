@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**DogClaud** es una aplicación desktop Electron que monitorea el uso de tokens de Claude Code en tiempo real. Tiene dos fuentes de datos: lectura de archivos JSONL de `~/.claude/projects/` (estimación local) y sincronización directa con la API web de claude.ai (datos reales). Calcula el consumo de tokens en ventanas de sesión (5h) y semanal (7d) contra límites del plan (Pro/Max5/Max20), y muestra gauges de uso con alertas visuales/audio en umbrales configurables. UI escrita en español. Nombre de la app: **DogClaud** (appId: `com.thlcorporation.dogclaud`).
+**DogClaud** (repo: `thl-corporation/dogclaud`) es una aplicación desktop Electron que monitorea el uso de tokens de Claude Code en tiempo real. Tiene dos fuentes de datos: lectura de archivos JSONL de `~/.claude/projects/` (estimación local) y sincronización directa con la API web de claude.ai (datos reales). Calcula el consumo de tokens en ventanas de sesión (5h) y semanal (7d) contra límites del plan (Pro/Max5/Max20), y muestra gauges de uso con alertas visuales/audio en umbrales configurables. UI escrita en español. Nombre de la app: **DogClaud** (appId: `com.thlcorporation.dogclaud`).
 
 ## Commands
 
@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run preview` — Preview del build de producción
 - `npm run dist:linux` — Build + empaquetado .AppImage y .deb (output en `release/`)
 - `npm run dist:mac` — Build + empaquetado .zip para macOS (output en `release/`)
-- `npm run dist:win` — Build + empaquetado .exe NSIS para Windows (requiere Wine funcional en Linux, o compilar desde Windows nativo)
+- `npm run dist:win` — Build + empaquetado .exe NSIS para Windows (**debe compilarse desde Windows nativo** — Wine no soporta `rcedit`)
 - `npm run dist` — Build + empaquetado para la plataforma actual
 - `npx tsc --noEmit` — Type check rápido sin build
 
@@ -138,6 +138,12 @@ Hay dos sistemas de alertas que operan en paralelo pero con fuente única según
 - Tipos compartidos en `src/shared/types.ts` (incluye `IElectronAPI`, `PlanType`, `UsageData`, `TokenEvent`, `AppSettings`, `AlertConfig`)
 - Settings store: `dogclaud-settings` (electron-store)
 - Cookie store: `claude-web-cookies` (electron-store)
+
+## Branching
+
+- `main` — Rama estable, protegida. Solo el owner puede pushear.
+- `develop` — Desarrollo activo, protegida. Solo el owner puede pushear. Los PRs externos van aquí.
+- `feature/*`, `fix/*` — Ramas de trabajo, se crean desde `develop`.
 
 ## Seguridad
 
