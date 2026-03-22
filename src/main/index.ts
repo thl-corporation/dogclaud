@@ -558,14 +558,15 @@ function checkAlerts(percentage: number, alertsEnabled: boolean): void {
       const alertColor = getColorForPercentage(threshold);
       const iconFile = colorMap[alertColor] || 'dog-emoji-green.png';
       const iconPath = path.join(__dirname, '../../assets', iconFile);
-      const iconData = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : undefined;
 
-      new Notification({
-        title: '🐕 DogClaud',
-        body: messages[threshold],
-        urgency: threshold >= 95 ? 'critical' : 'normal',
-        icon: iconData
-      }).show();
+      if (Notification.isSupported()) {
+        new Notification({
+          title: '🐕 DogClaud',
+          body: messages[threshold],
+          urgency: threshold >= 95 ? 'critical' : 'normal',
+          icon: fs.existsSync(iconPath) ? iconPath : undefined
+        }).show();
+      }
 
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('show-alert', { threshold, message: messages[threshold] });
@@ -789,6 +790,13 @@ function setupAutoStart(): void {
 
 app.whenReady().then(async () => {
   app.setName('DogClaud');
+  if (process.platform === 'linux') {
+    try {
+      (app as unknown as { setDesktopName(name: string): void }).setDesktopName('dogclaud.desktop');
+    } catch {
+      // Fallback: not available in all Electron versions
+    }
+  }
   initStore();
 
   // Restore web session cookies BEFORE anything else
