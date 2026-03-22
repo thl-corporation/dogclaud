@@ -5,7 +5,8 @@
 <h1 align="center">DogClaud</h1>
 
 <p align="center">
-  <strong>Monitorea tu consumo real de tokens de Claude Code. Sin sorpresas.</strong>
+  <strong>Monitor your Claude Code token usage in real time. No surprises.</strong><br>
+  <sub>Monitorea tu consumo real de tokens de Claude Code. Sin sorpresas.</sub>
 </p>
 
 <p align="center">
@@ -25,50 +26,51 @@
 
 ---
 
-## El problema
+## The Problem / El Problema
 
-Si usas **Claude Code** a diario, conoces esto: estas en medio de un refactor importante, llevas horas de contexto acumulado, y de repente — **limite alcanzado**. Sin aviso. Sin tiempo para guardar tu progreso mental.
+If you use **Claude Code** daily, you know this: you're in the middle of an important refactor, hours of accumulated context, and suddenly — **limit reached**. No warning. No time to save your mental progress.
 
-## La solucion
+Si usas **Claude Code** a diario, conoces esto: estas en medio de un refactor importante, llevas horas de contexto acumulado, y de repente — **limite alcanzado**. Sin aviso.
 
-**DogClaud** es una app de escritorio que vive en tu bandeja del sistema. Se conecta directamente con tu cuenta de **claude.ai**, monitorea tu consumo real de tokens en tiempo real, y te alerta con tiempo suficiente para que tomes decisiones inteligentes.
+## The Solution / La Solucion
 
-**No estima. Sabe exactamente cuanto has usado y cuanto te queda.**
+**DogClaud** is a desktop app that lives in your system tray. It connects directly to your **claude.ai** account, monitors your real token usage in real time, and alerts you with enough time to make smart decisions.
+
+**It doesn't estimate. It knows exactly how much you've used and how much you have left.**
 
 ---
 
-## Funcionalidades
+## Features / Funcionalidades
 
-### Datos reales desde claude.ai
-- Sincronizacion directa con la API de claude.ai cada 30 segundos
-- Requiere login con tu cuenta — los datos se muestran solo con sesion web activa
-- Sin sesion, la app muestra estado neutro (sin datos inventados)
+### Real data from claude.ai / Datos reales desde claude.ai
+- Direct sync with the claude.ai API every 30 seconds
+- Login with your account — data shown only with an active web session
+- Without a session, the app shows a neutral state (no fake data)
 
-### Gauges visuales en tiempo real
-- Sesion actual (ventana de 5 horas) con countdown al reset
-- Consumo semanal (ventana de 7 dias) con countdown al reset
-- Colores de semaforo: verde → azul → amarillo → naranja → rojo
+### Real-time visual gauges / Gauges visuales en tiempo real
+- Current session (5-hour window) with countdown to reset
+- Weekly consumption (7-day window) with countdown to reset
+- Traffic light colors: green → blue → yellow → orange → red
 
-### Sistema de alertas inteligente
-- 6 umbrales: 25%, 50%, 75%, 90%, 95%, 100%
-- Pitidos con frecuencia unica por nivel.
-- Notificaciones nativas del sistema operativo
-- **alertas de disparan cuando el uso SUBE y cruza un nuevo umbral
-- Silenciables.
+### Smart alert system / Sistema de alertas inteligente
+- 6 thresholds: 25%, 50%, 75%, 90%, 95%, 100%
+- 3 beeps with unique frequency per level (1kHz to 4kHz)
+- Native OS notifications
+- **Zero alerts on startup** — only triggers when usage RISES and crosses a new threshold
+- Individually silenceable
 
-### Icono vivo en la bandeja del sistema
-- Cambia de color segun tu consumo actual
-- Tooltip con porcentaje y tiempo restante al reset
-- Menu contextual con resumen completo
-- Sin sesion web muestra "Sin sesion web" (sin porcentajes falsos)
+### Live system tray icon / Icono vivo en la bandeja del sistema
+- Changes color based on your current consumption
+- Tooltip with percentage and time remaining until reset
+- Context menu with full summary
 
-### Planificador semanal
-- Define bloques de uso por dia
-- Organiza tu semana para maximizar tokens
+### Weekly planner / Planificador semanal
+- Define usage blocks per day
+- Organize your week to maximize tokens
 
-### 3 planes soportados
+### 3 supported plans / 3 planes soportados
 
-| Plan | Sesion (5h) | Semanal (7d) |
+| Plan | Session (5h) | Weekly (7d) |
 |------|-------------|--------------|
 | **Pro** | ~7,000 tokens | ~100,000 tokens |
 | **Max 5** | ~35,000 tokens | ~500,000 tokens |
@@ -76,24 +78,15 @@ Si usas **Claude Code** a diario, conoces esto: estas en medio de un refactor im
 
 ---
 
-## Instalacion rapida
+## Quick Install / Instalacion rapida
 
-### Desde codigo fuente (todas las plataformas)
+### Pre-built binaries / Binarios pre-compilados
 
-```bash
-git clone https://github.com/thl-corporation-spa/dogclaud.git
-cd dogclaud
-npm install
-npm run electron:dev
-```
-
-### Binarios pre-compilados
-
-Descarga desde [**Releases**](https://github.com/thl-corporation-spa/dogclaud/releases):
+Download from [**Releases**](https://github.com/thl-corporation-spa/dogclaud/releases):
 
 **Linux:**
 ```bash
-# AppImage (cualquier distro)
+# AppImage (any distro)
 chmod +x DogClaud-1.0.0.AppImage
 ./DogClaud-1.0.0.AppImage
 
@@ -102,122 +95,130 @@ sudo dpkg -i dogclaud_1.0.0_amd64.deb
 ```
 
 **macOS:**
-Descarga el `.zip`, descomprime y arrastra a Aplicaciones.
+Download the `.zip`, extract and drag to Applications.
 
 **Windows:**
+Run the `.exe` installer from Releases.
+
+### From source / Desde codigo fuente
+
 ```bash
 git clone https://github.com/thl-corporation-spa/dogclaud.git
-cd dogclaud && npm install && npm run dist:win
+cd dogclaud
+npm install
+npm run electron:dev
 ```
 
 ---
 
-## Inicio rapido
+## Quick Start / Inicio rapido
 
-1. Abre la app — se minimiza a la bandeja del sistema
-2. Click en el icono del perro para abrir la ventana
-3. En la pestana **Uso**, presiona **Conectar**
-4. Inicia sesion con tu cuenta de claude.ai
-5. Listo — datos reales en segundos
+1. Open the app — it minimizes to the system tray
+2. Click the dog icon to open the window
+3. In the **Usage** tab, press **Connect**
+4. Login with your claude.ai account
+5. Done — real data in seconds
 
 ---
 
-## Desarrollo
+## Development / Desarrollo
 
 ```bash
 git clone https://github.com/thl-corporation-spa/dogclaud.git
 cd dogclaud
 npm install
 
-npm run electron:dev     # App completa (build + Electron)
-npm run dev              # Dev server con hot reload (puerto 61983)
-npx tsc --noEmit         # Type check rapido
+npm run electron:dev     # Full app (build + Electron)
+npm run dev              # Dev server with hot reload (port 61983)
+npx tsc --noEmit         # Quick type check
 
-npm run dist:linux       # Genera AppImage + .deb
-npm run dist:mac         # Genera .zip para macOS
-npm run dist:win         # Genera .exe (requiere Windows nativo)
+npm run dist:linux       # AppImage + .deb
+npm run dist:mac         # .zip for macOS
+npm run dist:win         # .exe installer (requires native Windows)
 ```
 
 ---
 
-## Arquitectura
+## Architecture / Arquitectura
 
 ```
 src/
-├── main/index.ts          # Proceso principal Electron (~900 lineas)
-├── preload/index.ts       # Bridge seguro (contextBridge)
+├── main/index.ts          # Electron main process
+├── preload/index.ts       # Secure IPC bridge (contextBridge)
 ├── renderer/
-│   ├── App.tsx            # Layout principal + logica de alertas
+│   ├── App.tsx            # Main layout + alert logic
 │   ├── components/
-│   │   ├── gauges/        # SessionGauge, WeeklyGauge (SVG circular)
-│   │   ├── alerts/        # AlertManager (botones con estado)
+│   │   ├── gauges/        # SessionGauge, WeeklyGauge (circular SVG)
+│   │   ├── alerts/        # AlertManager (threshold buttons)
 │   │   ├── settings/      # SettingsPanel
 │   │   ├── scheduler/     # WeeklyPlan
-│   │   ├── WebUsagePanel  # Datos de claude.ai API
-│   │   └── SetupScreen    # Wizard inicial
+│   │   ├── WebUsagePanel  # claude.ai API data
+│   │   └── SetupScreen    # Initial setup wizard
 │   ├── stores/            # Zustand (usage, alerts, settings)
 │   └── hooks/             # useClaudeUsage
 ├── core/
-│   ├── parser/            # Lectura incremental de logs JSONL
-│   ├── calculator/        # Calculo de uso por ventana temporal
-│   ├── audio/             # Generador de tonos (Web Audio API)
-│   └── constants.ts       # Limites, umbrales, config de sonido
-└── shared/types.ts        # Tipos compartidos (IElectronAPI, etc.)
+│   ├── parser/            # Incremental JSONL log reader
+│   ├── calculator/        # Usage calculation per time window
+│   ├── audio/             # Tone generator (Web Audio API)
+│   └── constants.ts       # Limits, thresholds, sound config
+└── shared/types.ts        # Shared TypeScript types
 ```
 
 ---
 
-## Contribuir
+## Contributing / Contribuir
 
-Las contribuciones son bienvenidas:
+Contributions are welcome! / Las contribuciones son bienvenidas!
 
-1. **Fork** este repositorio
-2. Crea una rama (`git checkout -b mi-mejora`)
-3. Haz commit de tus cambios
-4. Abre un **Pull Request**
+1. **Fork** this repository
+2. Create a branch from `develop`: `git checkout -b feature/my-improvement develop`
+3. Make your changes and verify: `npx tsc --noEmit`
+4. Open a **Pull Request** against `develop`
 
-> La rama `main` esta protegida. Todos los cambios requieren revision via PR.
+> The `main` branch is protected. All changes go through `develop` via PR.
 
-Consulta [CONTRIBUTING.md](CONTRIBUTING.md) para mas detalles.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
 
 ---
 
-## Stack
+## Tech Stack
 
-| Capa | Tecnologia |
-|------|-----------|
+| Layer | Technology |
+|-------|-----------|
 | **Desktop** | Electron 28 |
-| **Frontend** | React 18 + TypeScript + Tailwind CSS |
-| **Estado** | Zustand |
+| **Frontend** | React 18 + TypeScript 5 + Tailwind CSS 3 |
+| **State** | Zustand 4 |
 | **Audio** | Web Audio API (oscillator + gain) |
-| **Monitoreo** | Chokidar (file watching) |
-| **Persistencia** | electron-store |
-| **Build** | Vite + vite-plugin-electron |
-| **Empaquetado** | electron-builder (AppImage, deb, zip, exe) |
+| **Monitoring** | Chokidar 3 (file watching) |
+| **Persistence** | electron-store 8 |
+| **Build** | Vite 5 + vite-plugin-electron |
+| **Packaging** | electron-builder (AppImage, deb, zip, exe) |
 
 ---
 
-## Seguridad
+## Security / Seguridad
 
-- Sin API keys, tokens ni credenciales hardcodeadas
-- Las cookies de sesion web se almacenan localmente (electron-store), nunca se transmiten a terceros
-- Los logs del main process no exponen UUIDs, emails, nombres de org ni valores de cookies
-- Dev server en puerto no estandar (61983) para evitar conflictos
+- No hardcoded API keys, tokens or credentials
+- Web session cookies stored locally (electron-store), never transmitted to third parties
+- Main process logs don't expose UUIDs, emails, org names or cookie values
+- Dev server on non-standard port (61983) to avoid conflicts
 
 ---
 
-## Autor
+## Author / Autor
 
 **Eliezer Lopez M.** — [admin@thlcorporation.com](mailto:admin@thlcorporation.com)
 
+Developed by [**THL Corporation**](https://github.com/thl-corporation-spa) from Chile.
+
 ---
 
-## Licencia
+## License / Licencia
 
-[MIT License](LICENSE) — usa, modifica y distribuye libremente.
+[MIT License](LICENSE) — use, modify and distribute freely.
 
 ---
 
 <p align="center">
-  <sub>con amor <strong>THL Corporation</strong> desde Chile</sub>
+  <sub>Made with love by <strong>THL Corporation</strong> from Chile</sub>
 </p>

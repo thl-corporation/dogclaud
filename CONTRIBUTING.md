@@ -1,39 +1,53 @@
-# Contribuir a DogClaud
+# Contributing to DogClaud / Contribuir a DogClaud
 
-Gracias por tu interes en contribuir. Aqui te explicamos como hacerlo.
+Thank you for your interest in contributing! / Gracias por tu interes en contribuir.
 
-## Como contribuir
+## How to contribute / Como contribuir
 
-1. **Fork** el repositorio
-2. Clona tu fork: `git clone https://github.com/TU-USUARIO/dogclaud.git`
-3. Crea una rama: `git checkout -b mi-mejora`
-4. Instala dependencias: `npm install`
-5. Desarrolla con: `npm run electron:dev`
-6. Verifica tipos: `npx tsc --noEmit`
-7. Commit y push a tu fork
-8. Abre un **Pull Request** contra `main`
+1. **Fork** the repository
+2. Clone your fork: `git clone https://github.com/YOUR-USER/dogclaud.git`
+3. Create a branch from `develop`: `git checkout -b feature/my-improvement develop`
+4. Install dependencies: `npm install`
+5. Develop with: `npm run electron:dev`
+6. Verify types: `npx tsc --noEmit`
+7. Commit and push to your fork
+8. Open a **Pull Request** against the `develop` branch
 
-## Reglas
+> **Important:** PRs should target `develop`, not `main`. The `main` branch is protected and only receives merges from `develop` after review.
 
-- Los strings de UI van en **espanol**
-- Usa **inline styles** (no clases Tailwind) para componentes
-- No subas datos sensibles (API keys, credenciales, UUIDs personales)
-- Verifica que compile sin errores antes de abrir PR
-- Un PR, un proposito. PRs pequenos y enfocados se revisan mas rapido.
+## Branch structure / Estructura de ramas
 
-## Estructura del proyecto
+- `main` — Stable, production-ready code. Protected branch.
+- `develop` — Active development. All PRs go here.
+- `feature/*` — New features (branch from `develop`)
+- `fix/*` — Bug fixes (branch from `develop`)
+
+## Rules / Reglas
+
+- UI strings are in **Spanish**
+- Use **inline styles** (not Tailwind classes) for components
+- Do not upload sensitive data (API keys, credentials, personal UUIDs)
+- Verify that it compiles without errors before opening a PR: `npx tsc --noEmit`
+- One PR, one purpose. Small, focused PRs are reviewed faster.
+
+## Project structure / Estructura del proyecto
 
 ```
 src/
-  core/          # Logica compartida (parser, calculadora, audio, constantes)
-  main/          # Proceso principal Electron (index.ts)
-  preload/       # Bridge IPC (index.ts)
+  core/          # Shared logic (parser, calculator, audio, constants)
+  main/          # Electron main process (index.ts)
+  preload/       # IPC bridge (index.ts)
   renderer/      # React UI
-    components/  # Componentes visuales
+    components/  # Visual components
     stores/      # Zustand stores
-  shared/        # Tipos TypeScript compartidos
+  shared/        # Shared TypeScript types
 ```
 
-## Reporte de bugs
+## Bug reports / Reporte de bugs
 
-Usa los [issue templates](https://github.com/thl-corporation-spa/dogclaud/issues/new/choose) para reportar bugs o sugerir funcionalidades.
+Use the [issue templates](https://github.com/thl-corporation-spa/dogclaud/issues/new/choose) to report bugs or suggest features.
+
+---
+
+**Eliezer Lopez M.** — [admin@thlcorporation.com](mailto:admin@thlcorporation.com)
+[THL Corporation](https://github.com/thl-corporation-spa) — Chile

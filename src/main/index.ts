@@ -331,6 +331,7 @@ function initStore(): void {
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
+    title: 'DogClaud',
     width: 600,
     height: 750,
     show: !(settingsStore.get('startMinimized') as boolean),
@@ -787,6 +788,7 @@ function setupAutoStart(): void {
 }
 
 app.whenReady().then(async () => {
+  app.setName('DogClaud');
   initStore();
 
   // Restore web session cookies BEFORE anything else

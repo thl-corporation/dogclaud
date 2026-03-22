@@ -8,14 +8,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-- `npm run dev` — Servidor dev Vite (solo renderer, sin Electron shell)
-- `npm run electron:dev` — Compilar y lanzar app Electron completa
+- `npm run dev` — Servidor dev Vite con hot reload (renderer + Electron, puerto 61983)
+- `npm run electron:dev` — Build estático + lanzar Electron (sin hot reload)
 - `npm run build` — TypeScript check + Vite production build
+- `npm run preview` — Preview del build de producción
 - `npm run dist:linux` — Build + empaquetado .AppImage y .deb (output en `release/`)
 - `npm run dist:mac` — Build + empaquetado .zip para macOS (output en `release/`)
 - `npm run dist:win` — Build + empaquetado .exe NSIS para Windows (requiere Wine funcional en Linux, o compilar desde Windows nativo)
 - `npm run dist` — Build + empaquetado para la plataforma actual
 - `npx tsc --noEmit` — Type check rápido sin build
+
+**No hay framework de tests.** La verificación pre-commit es solo `npx tsc --noEmit`.
 
 **Nota:** Si `dist/` o `release/` tienen archivos propiedad de root (de builds previos con sudo), hay que limpiarlos con `sudo rm -rf dist release` antes de rebuilds.
 
@@ -128,7 +131,10 @@ Hay dos sistemas de alertas que operan en paralelo pero con fuente única según
 - electron-builder config en `package.json` bajo `"build"`; output en `release/`
 - appId: `com.thlcorporation.dogclaud`, productName: `DogClaud`
 - Targets: Linux (AppImage + deb), macOS (zip), Windows (nsis)
-- Icono de app: `assets/dog-emoji-512.png`. Iconos de tray: `assets/dog-emoji-{color}.png`
+- Iconos de app: `build/icons/{size}x{size}.png` (16–512px, para Linux `.desktop`). Fuente: `assets/dog-emoji-512.png`
+- Iconos de tray: `assets/dog-emoji-{color}.png`
+- `app.setName('DogClaud')` en main process para WM_CLASS correcto en Linux
+- `executableName: "dogclaud"` y `StartupWMClass: "dogclaud"` en config Linux de electron-builder
 - Tipos compartidos en `src/shared/types.ts` (incluye `IElectronAPI`, `PlanType`, `UsageData`, `TokenEvent`, `AppSettings`, `AlertConfig`)
 - Settings store: `dogclaud-settings` (electron-store)
 - Cookie store: `claude-web-cookies` (electron-store)

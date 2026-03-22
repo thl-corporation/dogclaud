@@ -63,7 +63,11 @@
       "target": ["AppImage", "deb"],
       "category": "Utility",
       "maintainer": "admin@thlcorporation.com",
-      "icon": "assets/dog-emoji-512.png"
+      "icon": "build/icons",
+      "executableName": "dogclaud",
+      "desktop": {
+        "StartupWMClass": "dogclaud"
+      }
     },
     "win": {
       "target": ["nsis"],
