@@ -138,8 +138,15 @@ npx tsc --noEmit         # Quick type check
 
 npm run dist:linux       # AppImage + .deb
 npm run dist:mac         # .zip for macOS
-npm run dist:win         # .exe installer (requires native Windows)
+npm run dist:win         # .exe installer (must be built on native Windows — see note below)
 ```
+
+> **Windows build note:** The `dist:win` command requires a native Windows environment. Building on Linux/macOS via Wine is not supported because `electron-builder` uses `rcedit` to modify the `.exe` metadata, which depends on Windows-native DLLs. To build the Windows installer:
+>
+> 1. Clone the repo on a Windows machine
+> 2. Install [Node.js](https://nodejs.org/) (v18+)
+> 3. Run `npm install && npm run dist:win`
+> 4. The `.exe` installer will be generated in the `release/` folder
 
 ---
 
