@@ -45,9 +45,9 @@ src/
 
 ## Bug reports / Reporte de bugs
 
-Use the [issue templates](https://github.com/thl-corporation-spa/dogclaud/issues/new/choose) to report bugs or suggest features.
+Use the [issue templates](https://github.com/thl-corporation/dogclaud/issues/new/choose) to report bugs or suggest features.
 
 ---
 
 **Eliezer Lopez M.** — [admin@thlcorporation.com](mailto:admin@thlcorporation.com)
-[THL Corporation](https://github.com/thl-corporation-spa) — Chile
+[THL Corporation](https://github.com/thl-corporation) — Chile

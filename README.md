@@ -10,11 +10,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/thl-corporation-spa/dogclaud/releases"><img src="https://img.shields.io/github/v/release/thl-corporation-spa/dogclaud?style=flat-square&color=6366f1" alt="Release"></a>
-  <a href="https://github.com/thl-corporation-spa/dogclaud/blob/main/LICENSE"><img src="https://img.shields.io/github/license/thl-corporation-spa/dogclaud?style=flat-square&color=22c55e" alt="License"></a>
-  <a href="https://github.com/thl-corporation-spa/dogclaud/stargazers"><img src="https://img.shields.io/github/stars/thl-corporation-spa/dogclaud?style=flat-square&color=eab308" alt="Stars"></a>
-  <a href="https://github.com/thl-corporation-spa/dogclaud/issues"><img src="https://img.shields.io/github/issues/thl-corporation-spa/dogclaud?style=flat-square&color=ef4444" alt="Issues"></a>
-  <a href="https://github.com/thl-corporation-spa/dogclaud/releases"><img src="https://img.shields.io/github/downloads/thl-corporation-spa/dogclaud/total?style=flat-square&color=3b82f6" alt="Downloads"></a>
+  <a href="https://github.com/thl-corporation/dogclaud/releases"><img src="https://img.shields.io/github/v/release/thl-corporation/dogclaud?style=flat-square&color=6366f1" alt="Release"></a>
+  <a href="https://github.com/thl-corporation/dogclaud/blob/main/LICENSE"><img src="https://img.shields.io/github/license/thl-corporation/dogclaud?style=flat-square&color=22c55e" alt="License"></a>
+  <a href="https://github.com/thl-corporation/dogclaud/stargazers"><img src="https://img.shields.io/github/stars/thl-corporation/dogclaud?style=flat-square&color=eab308" alt="Stars"></a>
+  <a href="https://github.com/thl-corporation/dogclaud/issues"><img src="https://img.shields.io/github/issues/thl-corporation/dogclaud?style=flat-square&color=ef4444" alt="Issues"></a>
+  <a href="https://github.com/thl-corporation/dogclaud/releases"><img src="https://img.shields.io/github/downloads/thl-corporation/dogclaud/total?style=flat-square&color=3b82f6" alt="Downloads"></a>
 </p>
 
 <p align="center">
@@ -82,7 +82,7 @@ Si usas **Claude Code** a diario, conoces esto: estas en medio de un refactor im
 
 ### Pre-built binaries / Binarios pre-compilados
 
-Download from [**Releases**](https://github.com/thl-corporation-spa/dogclaud/releases):
+Download from [**Releases**](https://github.com/thl-corporation/dogclaud/releases):
 
 **Linux:**
 ```bash
@@ -103,7 +103,7 @@ Run the `.exe` installer from Releases.
 ### From source / Desde codigo fuente
 
 ```bash
-git clone https://github.com/thl-corporation-spa/dogclaud.git
+git clone https://github.com/thl-corporation/dogclaud.git
 cd dogclaud
 npm install
 npm run electron:dev
@@ -124,7 +124,7 @@ npm run electron:dev
 ## Development / Desarrollo
 
 ```bash
-git clone https://github.com/thl-corporation-spa/dogclaud.git
+git clone https://github.com/thl-corporation/dogclaud.git
 cd dogclaud
 npm install
 
@@ -209,7 +209,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
 
 **Eliezer Lopez M.** — [admin@thlcorporation.com](mailto:admin@thlcorporation.com)
 
-Developed by [**THL Corporation**](https://github.com/thl-corporation-spa) from Chile.
+Developed by [**THL Corporation**](https://github.com/thl-corporation) from Chile.
 
 ---
 

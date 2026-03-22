@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Monitorea tu uso de tokens de Claude Code en tiempo real con datos reales y alertas inteligentes",
   "main": "dist-electron/main/index.js",
-  "homepage": "https://github.com/thl-corporation-spa/dogclaud",
+  "homepage": "https://github.com/thl-corporation/dogclaud",
   "author": {
     "name": "Eliezer Lopez M.",
     "email": "admin@thlcorporation.com"
