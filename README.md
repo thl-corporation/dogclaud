@@ -91,11 +91,11 @@ Download from [**Releases**](https://github.com/thl-corporation/dogclaud/release
 **Linux:**
 ```bash
 # AppImage (any distro)
-chmod +x DogClaud-1.0.0.AppImage
-./DogClaud-1.0.0.AppImage
+chmod +x DogClaud-1.1.0.AppImage
+./DogClaud-1.1.0.AppImage
 
 # Debian / Ubuntu
-sudo dpkg -i dogclaud_1.0.0_amd64.deb
+sudo dpkg -i dogclaud_1.1.0_amd64.deb
 ```
 
 **macOS:**
@@ -139,6 +139,8 @@ npx tsc --noEmit         # Quick type check
 npm run dist:linux       # AppImage + .deb
 npm run dist:mac         # .zip for macOS
 npm run dist:win         # .exe installer (must be built on native Windows — see note below)
+
+npm run update           # Full update: close app → pull → build → install .deb → restart
 ```
 
 > **Windows build note:** The `dist:win` command requires a native Windows environment. Building on Linux/macOS via Wine is not supported because `electron-builder` uses `rcedit` to modify the `.exe` metadata, which depends on Windows-native DLLs. To build the Windows installer:
@@ -204,6 +206,21 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
 | **Persistence** | electron-store 8 |
 | **Build** | Vite 5 + vite-plugin-electron |
 | **Packaging** | electron-builder (AppImage, deb, zip, exe) |
+
+---
+
+## Changelog / Historial de cambios
+
+### v1.1.0
+- **Fix:** False 100% usage on startup — alerts no longer fire on app launch
+- **Fix:** Alert system not triggering when crossing new thresholds after initial sync
+- **Fix:** Taskbar icon not showing in Linux task managers (WM_CLASS mismatch)
+- **New:** Circular app icons for a polished look
+- **New:** `npm run update` — one-command update script (close, pull, build, install, restart)
+- **Perf:** Optimized incremental JSONL parsing and reduced unnecessary re-renders
+
+### v1.0.0
+- Initial release with real-time token monitoring, claude.ai API sync, smart alerts, system tray integration, and weekly planner
 
 ---
 
