@@ -17,7 +17,8 @@
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
     "dist:mac": "npm run build && electron-builder --mac",
-    "generate-icons": "node scripts/generate-circular-icons.js"
+    "generate-icons": "node scripts/generate-circular-icons.js",
+    "update": "bash scripts/update.sh"
   },
   "keywords": [
     "dogclaud",

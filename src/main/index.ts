@@ -8,6 +8,11 @@ import { getClaudeLogPaths, parseTokenEvents, getClaudeUserInfo } from '../core/
 import { calculateUsage, calculateResetTimes, formatCountdown } from '../core/calculator/usageCalculator';
 import { AppSettings } from '../shared/types';
 
+// Force WM_CLASS to match .desktop StartupWMClass on Linux
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('class', 'dogclaud');
+}
+
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let settingsStore: Store<Record<string, unknown>>;
