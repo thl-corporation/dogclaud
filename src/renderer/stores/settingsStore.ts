@@ -20,7 +20,6 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   startMinimized: true,
   startWithSystem: false,
   schedule: null,
-  alertedThresholds: [],
   isLoading: true,
   
   loadSettings: (settings) => set({ ...settings, isLoading: false }),

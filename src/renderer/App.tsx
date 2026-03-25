@@ -69,10 +69,6 @@ function App() {
     weeklyTokens,
     sessionLimit,
     weeklyLimit,
-    sessionPercentage,
-    weeklyPercentage,
-    sessionResetTime,
-    weeklyResetTime,
     planType,
     lastUpdate,
     setUsage
@@ -88,7 +84,7 @@ function App() {
     updateSetting
   } = useSettingsStore();
 
-  const { alerts, triggerAlert, silenceAlert, setSoundPlaying } = useAlertStore();
+  const { alerts, triggerAlert, silenceAlert, untriggerAlert, setSoundPlaying } = useAlertStore();
   const alertedRef = useRef<Set<number>>(new Set());
   const hasSyncedRef = useRef(false);
 
@@ -262,25 +258,21 @@ function App() {
 
   const hasWebData = typeof webFiveHour?.utilization === 'number' || typeof webSevenDay?.utilization === 'number';
 
-  // Use web API data when connected; show 0 when no web session
+  // Use web API data when available; show 0 until real data arrives
   const effectiveSessionPct = hasWebData && typeof webFiveHour?.utilization === 'number'
     ? Math.min(webFiveHour.utilization, 100)
-    : webConnected ? sessionPercentage : 0;
+    : 0;
   const effectiveWeeklyPct = hasWebData && typeof webSevenDay?.utilization === 'number'
     ? Math.min(webSevenDay.utilization, 100)
-    : webConnected ? weeklyPercentage : 0;
+    : 0;
 
   const sessionCountdown = hasWebData && webFiveHour?.resets_at
     ? formatCountdown(new Date(webFiveHour.resets_at))
-    : webConnected && sessionResetTime
-      ? formatCountdown(new Date(sessionResetTime))
-      : '--:--';
+    : '--:--';
 
   const weeklyCountdown = hasWebData && webSevenDay?.resets_at
     ? formatCountdownWeekly(new Date(webSevenDay.resets_at))
-    : webConnected && weeklyResetTime
-      ? formatCountdownWeekly(new Date(weeklyResetTime))
-      : '--d --h';
+    : '--d --h';
 
   // Update tray icon whenever effective percentages change (only when web connected)
   useEffect(() => {
@@ -294,7 +286,7 @@ function App() {
   // When first sync completes, mark ALL currently exceeded thresholds as already alerted
   // Alerts only fire for NEW threshold crossings AFTER this point
   useEffect(() => {
-    if (!hasSyncedRef.current && (hasWebData || isConnected)) {
+    if (!hasSyncedRef.current && hasWebData) {
       hasSyncedRef.current = true;
       // Mark ALL exceeded thresholds — no alert sounds on startup
       for (const threshold of ALERT_THRESHOLDS) {
@@ -303,12 +295,24 @@ function App() {
         }
       }
     }
-  }, [hasWebData, isConnected, effectiveSessionPct]);
+  }, [hasWebData, effectiveSessionPct]);
 
   // Check alerts when session percentage changes
   useEffect(() => {
     checkAlerts(effectiveSessionPct);
   }, [effectiveSessionPct, checkAlerts]);
+
+  // Clean up alerted thresholds when percentage drops (e.g., after session reset)
+  // This allows alerts to fire again when usage climbs back up
+  useEffect(() => {
+    if (!hasSyncedRef.current) return;
+    for (const threshold of ALERT_THRESHOLDS) {
+      if (effectiveSessionPct < threshold.threshold && alertedRef.current.has(threshold.threshold)) {
+        alertedRef.current.delete(threshold.threshold);
+        untriggerAlert(threshold.threshold);
+      }
+    }
+  }, [effectiveSessionPct, untriggerAlert]);
 
   // #5 - Refresh with animation
   const refreshData = async () => {

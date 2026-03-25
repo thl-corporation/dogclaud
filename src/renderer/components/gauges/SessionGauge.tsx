@@ -26,7 +26,7 @@ export const SessionGauge: React.FC<SessionGaugeProps> = ({
   const isBlinking = percentage >= 100;
   const isCritical = percentage >= 90;
 
-  const gradientId = `session-grad-${Math.round(percentage)}`;
+  const gradientId = 'session-grad';
 
   const statusLabel =
     percentage >= 100 ? 'LÍMITE' :

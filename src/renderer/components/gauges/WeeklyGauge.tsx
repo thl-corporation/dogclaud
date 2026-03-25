@@ -26,7 +26,7 @@ export const WeeklyGauge: React.FC<WeeklyGaugeProps> = ({
   const isBlinking = percentage >= 100;
   const isCritical = percentage >= 75;
 
-  const gradientId = `weekly-grad-${Math.round(percentage)}`;
+  const gradientId = 'weekly-grad';
 
   return (
     <div

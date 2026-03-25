@@ -9,6 +9,7 @@ interface AlertState {
   
   triggerAlert: (threshold: number) => void;
   silenceAlert: (threshold: number) => void;
+  untriggerAlert: (threshold: number) => void;
   setSoundPlaying: (playing: boolean) => void;
   clearCurrentAlert: () => void;
   resetAlerts: () => void;
@@ -33,10 +34,16 @@ export const useAlertStore = create<AlertState>((set) => ({
   }),
   
   silenceAlert: (threshold) => set((state) => ({
-    alerts: state.alerts.map(a => 
+    alerts: state.alerts.map(a =>
       a.threshold === threshold ? { ...a, silenced: true } : a
     ),
     currentAlert: state.currentAlert?.threshold === threshold ? null : state.currentAlert
+  })),
+
+  untriggerAlert: (threshold) => set((state) => ({
+    alerts: state.alerts.map(a =>
+      a.threshold === threshold ? { ...a, triggered: false, silenced: false } : a
+    ),
   })),
   
   setSoundPlaying: (playing) => set({ isSoundPlaying: playing }),

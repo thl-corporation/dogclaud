@@ -18,6 +18,37 @@ let cachedOrgId: string | null = null;
 let cookieStore: Store<Record<string, unknown>> | null = null;
 let isWebConnected = false;
 
+// Event cache for incremental JSONL parsing (avoids re-reading entire files)
+const cachedEvents: import('../shared/types').TokenEvent[] = [];
+
+// Path cache with TTL to avoid redundant filesystem traversal
+let cachedLogPaths: string[] = [];
+let lastPathRefresh = 0;
+const PATH_REFRESH_INTERVAL = 60000; // 1 minute
+
+function getCachedLogPaths(): string[] {
+  const now = Date.now();
+  if (now - lastPathRefresh > PATH_REFRESH_INTERVAL || cachedLogPaths.length === 0) {
+    cachedLogPaths = getClaudeLogPaths();
+    lastPathRefresh = now;
+  }
+  return cachedLogPaths;
+}
+
+// Cookie save dedup
+let lastCookieHash = '';
+
+// IPC dedup
+let lastUsageHash = '';
+let lastWebUsageHash = '';
+
+// File watcher debounce
+let fileChangeDebounce: ReturnType<typeof setTimeout> | null = null;
+
+// Bootstrap TTL
+let bootstrapCachedAt = 0;
+const BOOTSTRAP_TTL = 5 * 60 * 1000; // 5 minutes
+
 const WEB_PARTITION = 'persist:claude-web';
 
 interface SavedCookie {
@@ -37,10 +68,15 @@ function getWebSession() {
 }
 
 /** Save all claude.ai cookies to electron-store for reliable persistence */
-async function saveCookiesToStore(): Promise<void> {
+async function saveCookiesToStore(force = false): Promise<void> {
   if (!cookieStore) return;
   const webSess = getWebSession();
   const allCookies = await webSess.cookies.get({ url: 'https://claude.ai' });
+
+  // Skip save if cookies haven't changed (unless forced)
+  const hash = allCookies.map(c => `${c.name}=${c.value}`).join('|');
+  if (!force && hash === lastCookieHash) return;
+  lastCookieHash = hash;
 
   const toSave: SavedCookie[] = allCookies.map(c => ({
     url: `https://${(c.domain || 'claude.ai').replace(/^\./, '')}${c.path || '/'}`,
@@ -146,7 +182,9 @@ let cachedBootstrap: Record<string, unknown> | null = null;
 let allOrgs: OrgInfo[] = [];
 
 async function getBootstrapData(): Promise<Record<string, unknown> | null> {
-  if (cachedBootstrap) return cachedBootstrap;
+  if (cachedBootstrap && (Date.now() - bootstrapCachedAt) < BOOTSTRAP_TTL) {
+    return cachedBootstrap;
+  }
 
   const bootstrap = await makeWebRequest('https://claude.ai/api/bootstrap');
   console.log('[WebAPI] Bootstrap status:', bootstrap.status);
@@ -154,6 +192,7 @@ async function getBootstrapData(): Promise<Record<string, unknown> | null> {
   if (bootstrap.status !== 200 || !bootstrap.data) return null;
 
   cachedBootstrap = bootstrap.data as Record<string, unknown>;
+  bootstrapCachedAt = Date.now();
   return cachedBootstrap;
 }
 
@@ -316,7 +355,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   startMinimized: true,
   startWithSystem: false,
   schedule: null,
-  alertedThresholds: []
 };
 
 function initStore(): void {
@@ -330,10 +368,12 @@ function initStore(): void {
 }
 
 function createWindow(): void {
+  const iconPath = path.join(__dirname, '../../build/icons/256x256.png');
   mainWindow = new BrowserWindow({
     title: 'DogClaud',
     width: 600,
     height: 750,
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
     show: !(settingsStore.get('startMinimized') as boolean),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
@@ -439,17 +479,17 @@ function updateTrayMenu(sessionPercentage: number, weeklyPercentage: number): vo
 }
 
 function setupFileWatcher(): void {
-  const paths = getClaudeLogPaths();
-  
+  const paths = getCachedLogPaths();
+
   if (fileWatcher) {
     fileWatcher.close();
   }
-  
+
   if (paths.length === 0) {
     console.log('No Claude log paths found');
     return;
   }
-  
+
   fileWatcher = chokidar.watch(paths, {
     persistent: true,
     ignoreInitial: true,
@@ -458,34 +498,44 @@ function setupFileWatcher(): void {
       pollInterval: 100
     }
   });
-  
-  fileWatcher.on('change', (filePath) => {
+
+  // Debounce file change events to avoid redundant updateUsage calls
+  const onFileChange = (filePath: string) => {
     console.log(`File changed: ${filePath}`);
-    updateUsage();
-  });
-  
-  fileWatcher.on('add', (filePath) => {
-    console.log(`File added: ${filePath}`);
-    updateUsage();
-  });
-  
+    if (fileChangeDebounce) clearTimeout(fileChangeDebounce);
+    fileChangeDebounce = setTimeout(updateUsage, 1000);
+  };
+
+  fileWatcher.on('change', onFileChange);
+  fileWatcher.on('add', onFileChange);
+
   console.log(`Watching ${paths.length} files for changes`);
 }
 
 async function updateUsage(): Promise<void> {
   try {
     const settings = settingsStore.store as unknown as AppSettings;
-    const paths = getClaudeLogPaths();
-    const allEvents: import('../shared/types').TokenEvent[] = [];
+    const paths = getCachedLogPaths();
 
+    // Incremental: only parse new bytes from each file
     for (const filePath of paths) {
-      const events = await parseTokenEvents(filePath, 0);
-      allEvents.push(...events);
+      const newEvents = await parseTokenEvents(filePath);
+      cachedEvents.push(...newEvents);
     }
 
-    const usage = calculateUsage(allEvents, settings.plan);
+    // Prune events older than 7 days
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    let writeIdx = 0;
+    for (let i = 0; i < cachedEvents.length; i++) {
+      if (cachedEvents[i].timestamp >= weekAgo) {
+        cachedEvents[writeIdx++] = cachedEvents[i];
+      }
+    }
+    cachedEvents.length = writeIdx;
+
+    const usage = calculateUsage(cachedEvents, settings.plan);
     const resetTimes = calculateResetTimes(usage.sessionStartTime, usage.weeklyStartTime);
-    
+
     // When not connected to web, show neutral tray (no data)
     if (!isWebConnected) {
       if (tray) {
@@ -494,15 +544,17 @@ async function updateUsage(): Promise<void> {
       updateTrayMenu(-1, -1);
     }
 
-    // Send JSONL data to renderer (for internal tracking, renderer decides what to show)
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    // Send JSONL data to renderer only if data changed
+    const newHash = `${usage.sessionTokens}:${usage.weeklyTokens}`;
+    if (newHash !== lastUsageHash && mainWindow && !mainWindow.isDestroyed()) {
+      lastUsageHash = newHash;
       mainWindow.webContents.send('usage-update', {
         ...usage,
         sessionResetTime: resetTimes.sessionResetTime,
         weeklyResetTime: resetTimes.weeklyResetTime
       });
     }
-    
+
   } catch (error) {
     console.error('Error updating usage:', error);
   }
@@ -675,7 +727,12 @@ function setupIPC(): void {
 
           cachedOrgId = null; // Force re-fetch of org ID
 
-          if (loginWindow && !loginWindow.isDestroyed()) loginWindow.close();
+          // Clean up listeners before closing
+          if (loginWindow && !loginWindow.isDestroyed()) {
+            loginWindow.webContents.removeListener('did-navigate', onNavigate);
+            loginWindow.webContents.removeListener('did-navigate-in-page', onNavigate);
+            loginWindow.close();
+          }
           resolve({ success: true });
           // Notify renderer
           if (mainWindow && !mainWindow.isDestroyed()) {
@@ -729,16 +786,9 @@ function setupIPC(): void {
   });
   
   ipcMain.handle('get-usage-data', async () => {
+    // Use cached events (already maintained by updateUsage interval)
     const settings = settingsStore.store as unknown as AppSettings;
-    const paths = getClaudeLogPaths();
-    const allEvents: import('../shared/types').TokenEvent[] = [];
-
-    for (const filePath of paths) {
-      const events = await parseTokenEvents(filePath, 0);
-      allEvents.push(...events);
-    }
-
-    const usage = calculateUsage(allEvents, settings.plan);
+    const usage = calculateUsage(cachedEvents, settings.plan);
     const resetTimes = calculateResetTimes(usage.sessionStartTime, usage.weeklyStartTime);
 
     return {
@@ -821,13 +871,7 @@ app.whenReady().then(async () => {
       hasInitialSyncCompleted = true;
       try {
         const settings = settingsStore.store as unknown as AppSettings;
-        const paths = getClaudeLogPaths();
-        const allEvts: import('../shared/types').TokenEvent[] = [];
-        for (const fp of paths) {
-          const events = await parseTokenEvents(fp, 0);
-          allEvts.push(...events);
-        }
-        const usage = calculateUsage(allEvts, settings.plan);
+        const usage = calculateUsage(cachedEvents, settings.plan);
         const pct = usage.sessionLimit > 0 ? (usage.sessionTokens / usage.sessionLimit) * 100 : 0;
         const thresholds = [25, 50, 75, 90, 95, 100];
         for (const t of thresholds) {
@@ -865,8 +909,17 @@ app.whenReady().then(async () => {
     }
 
     if (result.connected) {
-      mainWindow.webContents.send('web-usage-update', result);
-      // Re-save cookies periodically to keep them fresh
+      // Only send IPC if web usage data changed
+      const usageResult = result.usage as Record<string, unknown> | null;
+      const usageObj = usageResult?.usage as Record<string, unknown> | undefined;
+      const fhCheck = usageObj?.five_hour as { utilization?: number } | undefined;
+      const sdCheck = usageObj?.seven_day as { utilization?: number } | undefined;
+      const webHash = `${fhCheck?.utilization}:${sdCheck?.utilization}`;
+      if (webHash !== lastWebUsageHash) {
+        lastWebUsageHash = webHash;
+        mainWindow.webContents.send('web-usage-update', result);
+      }
+      // Re-save cookies periodically (only if changed)
       await saveCookiesToStore();
 
       // Update tray icon from web API data
@@ -919,6 +972,6 @@ app.on('before-quit', async () => {
   if (fileWatcher) {
     fileWatcher.close();
   }
-  // Save cookies one last time before quitting
-  await saveCookiesToStore();
+  // Save cookies one last time before quitting (force write)
+  await saveCookiesToStore(true);
 });

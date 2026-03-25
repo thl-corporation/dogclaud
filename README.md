@@ -216,11 +216,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
 
 ---
 
-## Author / Autor
+## About / Acerca de
 
-**Eliezer López M.** — [admin@thlcorporation.com](mailto:admin@thlcorporation.com)
+| | |
+|---|---|
+| **Creator** | [THL Corporation](https://thlcorporation.com) |
+| **CEO** | Eliezer López |
+| **Web** | [thlcorporation.com](https://thlcorporation.com) |
+| **Contact** | [contacto@thlcorporation.com](mailto:contacto@thlcorporation.com) |
+| **GitHub** | [github.com/thl-corporation](https://github.com/thl-corporation) |
+| **License** | [MIT](LICENSE) |
 
-Developed by [**THL Corporation**](https://github.com/thl-corporation) from Chile.
+DogClaud is developed and maintained by **THL Corporation** from Chile.
 
 ---
 

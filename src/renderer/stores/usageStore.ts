@@ -14,13 +14,10 @@ interface UsageState {
   sessionStartTime: Date | null;
   weeklyStartTime: Date | null;
   planType: PlanType;
-  alertedThresholds: number[];
   lastUpdate: Date | null;
-  
+
   setUsage: (usage: Partial<UsageData> & { sessionResetTime?: Date; weeklyResetTime?: Date }) => void;
   setPlanType: (plan: PlanType) => void;
-  markThresholdAlerted: (threshold: number) => void;
-  resetAlertedThresholds: () => void;
 }
 
 export const useUsageStore = create<UsageState>((set) => ({
@@ -35,7 +32,6 @@ export const useUsageStore = create<UsageState>((set) => ({
   sessionStartTime: null,
   weeklyStartTime: null,
   planType: 'pro',
-  alertedThresholds: [],
   lastUpdate: null,
   
   setUsage: (usage) => set((state) => {
@@ -68,18 +64,12 @@ export const useUsageStore = create<UsageState>((set) => ({
       planType: plan,
       sessionLimit: limits.sessionTokens,
       weeklyLimit: limits.weeklyTokens,
-      sessionPercentage: state.sessionTokens > 0 
-        ? Math.min((state.sessionTokens / limits.sessionTokens) * 100, 100) 
+      sessionPercentage: state.sessionTokens > 0
+        ? Math.min((state.sessionTokens / limits.sessionTokens) * 100, 100)
         : 0,
-      weeklyPercentage: state.weeklyTokens > 0 
-        ? Math.min((state.weeklyTokens / limits.weeklyTokens) * 100, 100) 
+      weeklyPercentage: state.weeklyTokens > 0
+        ? Math.min((state.weeklyTokens / limits.weeklyTokens) * 100, 100)
         : 0
     }));
   },
-  
-  markThresholdAlerted: (threshold) => set((state) => ({
-    alertedThresholds: [...state.alertedThresholds, threshold]
-  })),
-  
-  resetAlertedThresholds: () => set({ alertedThresholds: [] })
 }));

@@ -55,7 +55,6 @@ export interface AppSettings {
   startMinimized: boolean;
   startWithSystem: boolean;
   schedule: Schedule | null;
-  alertedThresholds: number[];
 }
 
 export interface TokenEvent {
